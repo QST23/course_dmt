@@ -6,40 +6,40 @@ import math
 from statsmodels.graphics.tsaplots import plot_acf
 from scipy import stats
 
-# Read in the data
-df = pd.read_csv('Datasets/dataset_mood_smartphone.csv')
 
-def group_df_and_aggregate(df):
-    df['date'] = pd.to_datetime(df['time']).dt.date
-    df['time'] = pd.to_datetime(df['time']).dt.time
+def group_df_and_aggregate(dataframe):
+    dataframe['date'] = pd.to_datetime(dataframe['time']).dt.date
+    dataframe['time'] = pd.to_datetime(dataframe['time']).dt.time
 
-    grouped_df = df.groupby(['id', 'date', 'time', 'variable']).sum().reset_index()
+    grouped_df = dataframe.groupby(['id', 'date', 'time', 'variable']).sum().reset_index()
 
     #create dataframe of values per id per date per time
-    df = grouped_df.pivot_table(index=['id', 'date', 'time'], columns='variable', values='value')
+    dataframe = grouped_df.pivot_table(index=['id', 'date', 'time'], columns='variable', values='value')
+
+    return dataframe
 
 # Remove instances that are not in the range of the depicted column
 # ATTENTION should be performed before merging the data!!
-def range_removal(lower, upper, column_name, keep_nan=True):
+def range_removal(dataframe, lower, upper, column_name, keep_nan=True):
 
-    column = df[column_name]
+    column = dataframe[column_name]
 
     if keep_nan:
         # If we want to keep the NaN values use this
-        filtered_df = df[column.between(lower, upper) | column.isna()]
+        filtered_df = dataframe[column.between(lower, upper) | column.isna()]
     else:
         # If we want to remove the NaN values use this
-        filtered_df = df[(column >= lower) & (column <= upper)]
+        filtered_df = dataframe[(column >= lower) & (column <= upper)]
 
     return filtered_df
 
 # Remove the negative instances for the applications
-def remove_negative_values(columns, df):
+def remove_negative_values(columns, dataframe):
     for column in columns:
         # Keep the NaN values and replace the negative values with 0
-        df[column] = df.loc[~(df[column] < 0), column]
+        dataframe[column] = dataframe.loc[~(dataframe[column] < 0), column]
 
-    return df
+    return dataframe
 
 # TO DO: extreme values removal
 
@@ -150,20 +150,21 @@ def select_imputation_technique(mean_values, dataframe):
         dataframe = MA_on_missing_values(dataframe, 'circumplex.valence', 10)
         dataframe = MA_on_missing_values(dataframe, 'activity', 10)
 
-    return df
+    return dataframe
 
 
 # HERE WE START THE PIPELINE
 
 #every file should have a main that is called for the pipeline
 def main(df):
+    df = pd.read_csv('Datasets/dataset_mood_smartphone.csv')
 
     df = group_df_and_aggregate(df)
 
-    df = range_removal(1, 10, 'mood')
-    df = range_removal(-2, 2, 'circumplex.arousal')
-    df = range_removal(-2, 2, 'circumplex.valence')
-    df = range_removal(0, 1, 'activity')
+    df = range_removal(1, 10, 'mood', df)
+    df = range_removal(-2, 2, 'circumplex.arousal', df)
+    df = range_removal(-2, 2, 'circumplex.valence', df)
+    df = range_removal(0, 1, 'activity', df)
 
     df = remove_negative_values(['appCat.builtin', 'appCat.communication', 'appCat.entertainment', 'appCat.finance', 'appCat.game', 'appCat.office', 'appCat.other', 'appCat.social', 'appCat.travel', 'appCat.unknown', 'appCat.utilities', 'appCat.weather', 'screen', 'call', 'sms'], df)
 
