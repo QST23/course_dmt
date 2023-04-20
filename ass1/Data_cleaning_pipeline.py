@@ -156,23 +156,29 @@ def select_imputation_technique(mean_values):
 
 
 # HERE WE START THE PIPELINE
-df = group_df_and_aggregate(df)
 
-df = range_removal(1, 10, 'mood')
-df = range_removal(-2, 2, 'circumplex.arousal')
-df = range_removal(-2, 2, 'circumplex.valence')
-df = range_removal(0, 1, 'activity')
+#every file should have a main that is called for the pipeline
+def main(df):
 
-df = remove_negative_values(['appCat.builtin', 'appCat.communication', 'appCat.entertainment', 'appCat.finance', 'appCat.game', 'appCat.office', 'appCat.other', 'appCat.social', 'appCat.travel', 'appCat.unknown', 'appCat.utilities', 'appCat.weather', 'screen', 'call', 'sms'], df)
+    df = group_df_and_aggregate(df)
 
-df = aggregation_for_variables(df)
+    df = range_removal(1, 10, 'mood')
+    df = range_removal(-2, 2, 'circumplex.arousal')
+    df = range_removal(-2, 2, 'circumplex.valence')
+    df = range_removal(0, 1, 'activity')
 
-# Need to run two times (sorry voor buggy code)
-df = remove_starting_nan_until_n_values('mood', df, 4)
-df = remove_starting_nan_until_n_values('mood', df, 4)
+    df = remove_negative_values(['appCat.builtin', 'appCat.communication', 'appCat.entertainment', 'appCat.finance', 'appCat.game', 'appCat.office', 'appCat.other', 'appCat.social', 'appCat.travel', 'appCat.unknown', 'appCat.utilities', 'appCat.weather', 'screen', 'call', 'sms'], df)
 
-df = select_imputation_technique(mean_values = True)
-df
+    # TO DO: remove extreme values
+
+    df = aggregation_for_variables(df)
+
+    # Need to run two times (sorry voor buggy code)
+    df = remove_starting_nan_until_n_values('mood', df, 4)
+    df = remove_starting_nan_until_n_values('mood', df, 4)
+
+    df = select_imputation_technique(mean_values = True)
+    return df
 
 
 
