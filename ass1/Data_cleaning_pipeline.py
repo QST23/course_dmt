@@ -139,18 +139,18 @@ def MA_on_missing_values(dataframe, column, n):
     return dataframe
 
 
-def select_imputation_technique(mean_values):
+def select_imputation_technique(mean_values, dataframe):
 
     if mean_values == True:
-        df = mean_between('mood', df)
-        df = mean_between('circumplex.arousal', df)
-        df = mean_between('circumplex.valence', df)
-        df = mean_between('activity', df)
+        dataframe = mean_between('mood', dataframe)
+        dataframe = mean_between('circumplex.arousal', dataframe)
+        dataframe = mean_between('circumplex.valence', dataframe)
+        dataframe = mean_between('activity', dataframe)
     else:
-        df = MA_on_missing_values(df, 'mood', 10)
-        df = MA_on_missing_values(df, 'circumplex.arousal', 10)
-        df = MA_on_missing_values(df, 'circumplex.valence', 10)
-        df = MA_on_missing_values(df, 'activity', 10)
+        dataframe = MA_on_missing_values(dataframe, 'mood', 10)
+        dataframe = MA_on_missing_values(dataframe, 'circumplex.arousal', 10)
+        dataframe = MA_on_missing_values(dataframe, 'circumplex.valence', 10)
+        dataframe = MA_on_missing_values(dataframe, 'activity', 10)
 
     return df
 
@@ -177,7 +177,9 @@ def main(df):
     df = remove_starting_nan_until_n_values('mood', df, 4)
     df = remove_starting_nan_until_n_values('mood', df, 4)
 
-    df = select_imputation_technique(mean_values = True)
+    df = select_imputation_technique(True, df)
+
+    df.to_csv('ass1/Datasets/cleaned_data.csv', index=False)
     return df
 
 
