@@ -101,9 +101,9 @@ def mean_between(column_name, dataframe):
     # sort the dataframe by id
     dataframe = dataframe.sort_values(by='date')
 
-    # get the previous and next values
-    dataframe['prev_value'] = dataframe.groupby('id')[column_name].shift(1)
-    dataframe['next_value'] = dataframe.groupby('id')[column_name].shift(-1)
+    # get the previous and next NaN values
+    dataframe['prev_value'] = dataframe.groupby('id')[column_name].apply(lambda x: x.shift(1).bfill())
+    dataframe['next_value'] = dataframe.groupby('id')[column_name].apply(lambda x: x.shift(-1).ffill())
 
     # take the mean of previous and next values
     dataframe['mean_value'] = dataframe[['prev_value', 'next_value']].mean(axis=1)
@@ -112,9 +112,7 @@ def mean_between(column_name, dataframe):
         if pd.isna(row[column_name]):
             dataframe.loc[index, column_name] = row['mean_value']
 
-    dataframe.drop('mean_value', axis=1, inplace=True)
-    dataframe.drop('prev_value', axis=1, inplace=True)
-    dataframe.drop('next_value', axis=1, inplace=True)
+    dataframe.drop(['mean_value', 'prev_value', 'next_value'], axis=1, inplace=True)
 
     return dataframe
 
