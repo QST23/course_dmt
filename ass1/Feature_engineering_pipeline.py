@@ -89,7 +89,7 @@ def main(df, classifiction_model=False):
     df = add_previous_values(df, 'mood_relative_change', n=3)
 
     #add relative changes for valence and arousal and their previous values
-    support_features = ['circumplex.valence', 'circumplex.arousal']
+    support_features = ['circumplex.valence', 'circumplex.arousal', 'activity']
     for feature in support_features:
         df = add_relative_changes(df, feature)
         df = add_previous_values(df, feature, n=2)
