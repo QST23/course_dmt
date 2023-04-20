@@ -20,7 +20,7 @@ def group_df_and_aggregate(dataframe):
 
 # Remove instances that are not in the range of the depicted column
 # ATTENTION should be performed before merging the data!!
-def range_removal(dataframe, lower, upper, column_name, keep_nan=True):
+def range_removal(dataframe, column_name, lower, upper, keep_nan=True):
 
     column = dataframe[column_name]
 
@@ -34,7 +34,7 @@ def range_removal(dataframe, lower, upper, column_name, keep_nan=True):
     return filtered_df
 
 # Remove the negative instances for the applications
-def remove_negative_values(columns, dataframe):
+def remove_negative_values(dataframe, columns):
     for column in columns:
         # Keep the NaN values and replace the negative values with 0
         dataframe[column] = dataframe.loc[~(dataframe[column] < 0), column]
@@ -53,7 +53,7 @@ def aggregation_for_variables(dataframe):
 
 
 # Function that removes the starting nan values
-def remove_starting_nan_until_n_values(column_name, dataframe, n_param):
+def remove_starting_nan_until_n_values(dataframe, column_name, n_param):
     '''
     params: 
         colmun_name -> takes the name of the column as a string
@@ -137,7 +137,7 @@ def MA_on_missing_values(dataframe, column, n):
     return dataframe
 
 
-def select_imputation_technique(mean_values, dataframe):
+def select_imputation_technique(dataframe, mean_values):
 
     if mean_values == True:
         dataframe = mean_between('mood', dataframe)
@@ -157,32 +157,38 @@ def select_imputation_technique(mean_values, dataframe):
 
 #every file should have a main that is called for the pipeline
 def main(df):
-    df = pd.read_csv('Datasets/dataset_mood_smartphone.csv')
 
     df = group_df_and_aggregate(df)
 
-    df = range_removal(1, 10, 'mood', df)
-    df = range_removal(-2, 2, 'circumplex.arousal', df)
-    df = range_removal(-2, 2, 'circumplex.valence', df)
-    df = range_removal(0, 1, 'activity', df)
+    df = range_removal(df, 'mood', 1, 10)
+    df = range_removal(df, 'activity', 0, 1,)
+    df = range_removal(df, 'circumplex.arousal', -2, 2)
+    df = range_removal(df, 'circumplex.valence', -2, 2)
 
-    df = remove_negative_values(['appCat.builtin', 'appCat.communication', 'appCat.entertainment', 'appCat.finance', 'appCat.game', 'appCat.office', 'appCat.other', 'appCat.social', 'appCat.travel', 'appCat.unknown', 'appCat.utilities', 'appCat.weather', 'screen', 'call', 'sms'], df)
+    df = remove_negative_values(df, ['appCat.builtin', 'appCat.communication', 'appCat.entertainment', 'appCat.finance', 'appCat.game', 'appCat.office', 'appCat.other', 'appCat.social', 'appCat.travel', 'appCat.unknown', 'appCat.utilities', 'appCat.weather', 'screen', 'call', 'sms'])
 
     # TO DO: remove extreme values
 
     df = aggregation_for_variables(df)
 
     # Need to run two times (sorry voor buggy code)
-    df = remove_starting_nan_until_n_values('mood', df, 4)
-    df = remove_starting_nan_until_n_values('mood', df, 4)
+    df = remove_starting_nan_until_n_values(df, 'mood', 4)
+    df = remove_starting_nan_until_n_values(df, 'mood', 4)
 
-    df = select_imputation_technique(True, df)
+    df = select_imputation_technique(df, True)
 
-    df.to_csv('Datasets/cleaned_data.csv', index=False)
+    df.to_csv('ass1/Datasets/cleaned_data.csv', index=False)
     return df
 
 
+if __name__ == '__main__':
 
+    df = pd.read_csv('ass1/Datasets/mood_smartphone.csv')
+
+    df = main(df)
+
+    print(df.columns)
+    print(df.head(10))
 
 
 
