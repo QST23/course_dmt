@@ -49,7 +49,7 @@ def add_holiday(df):
     return df
 
 
-def transform_to_relative_changes(df, feature):
+def add_relative_changes(df, feature):
     df[f'{feature}_relative_change'] = df[feature].pct_change()
     return df
 
@@ -81,27 +81,36 @@ def predict_feature(df:pd.DataFrame, feature:str):
     return df
 
 def main(df, classifiction_model=False):
-    df = transform_to_relative_changes(df, 'mood')
-    df = transform_to_relative_changes(df, 'valence')
-    df = transform_to_relative_changes(df, 'arousal')
+    #add previous values for mood
+    df = add_previous_values(df, 'mood', n=3)
 
-    df = add_previous_values(df, 'mood', 3)
-    df = add_previous_values(df, 'valence', 3)
-    df = add_previous_values(df, 'arousal', 3)
-    #mss ook nog doen voor de relative changes als die interessant blijken
+    #add relative changes for mood and its previous values
+    df = add_relative_changes(df, 'mood')
+    df = add_previous_values(df, 'mood_relative_change', n=3)
 
+    #add relative changes for valence and arousal and their previous values
+    support_features = ['circumplex.valence', 'circumplex.arousal']
+    for feature in support_features:
+        df = add_relative_changes(df, feature)
+        df = add_previous_values(df, feature, n=2)
+        df = add_previous_values(df, f'{feature}_relative_change', n=2)
+
+    #one hot encode id
     df = one_hot_encode_feature(df, 'id')
 
+    #add whether the date is a holiday
     df = add_holiday(df)
 
-    df = predict_feature(df, 'valence')
+    #create a new feature that is the prediction of the next valence (same day as the to be predicted mood)
+    df = predict_feature(df, 'circumplex.valence')
 
+    #round the mood to the nearest integer if a classification problem
     if classifiction_model:
         df = round_feature(df, 'mood')
 
     return df
 
 if __name__ == '__main__':
-    df = pd.read_csv('Datasets/cleaned_data.csv')
+    df = pd.read_csv('ass1/Datasets/cleaned_data.csv')    
 
-    main(df)
+    print(main(df))
