@@ -1,4 +1,53 @@
 import pandas as pd
+import datetime
+from dateutil import easter
+from dateutil.relativedelta import relativedelta
+
+def is_dutch_holiday(date, boolean=True):
+    """
+    Returns True if the given date is a Dutch holiday, False otherwise.
+    
+    Parameters:
+    date (datetime.date): The date to check for being a Dutch holiday.
+    
+    Returns:
+    bool: True if the given date is a Dutch holiday, False otherwise.
+    """
+
+    #date to datetime
+    date = datetime.datetime.strptime(date, '%Y-%m-%d').date()
+
+    # Check for fixed holidays
+    fixed_holidays = {
+        datetime.date(date.year, 1, 1): 'Nieuwjaarsdag',
+        easter.easter(date.year) - relativedelta(days=2): 'Goede Vrijdag',
+        easter.easter(date.year) : 'Eerste Paasdag',
+        easter.easter(date.year) + relativedelta(days=1): 'Tweede Paasdag',
+        easter.easter(date.year) + relativedelta(days=39): 'Hemelvaartsdag',
+        easter.easter(date.year) + relativedelta(days=50): 'Eerste Pinksterdag',
+        easter.easter(date.year) + relativedelta(days=51): 'Tweede Pinksterdag',
+        datetime.date(date.year, 5, 5): 'Bevrijdingsdag',
+        datetime.date(date.year, 12, 5): 'Sinterklaas',
+        datetime.date(date.year, 12, 25): 'Eerste Kerstdag',
+        datetime.date(date.year, 12, 26): 'Tweede Kerstdag'
+    }
+    if date in fixed_holidays:
+        result = fixed_holidays[date]
+
+    # Check for variable holidays
+    kingsday = datetime.date(date.year, 4, 26) if date.weekday() == 0 else datetime.date(date.year, 4, 27)
+    if date == kingsday:
+        result = 'Koningsdag'
+    
+    # If the date is not a holiday, result = False
+    result = False
+
+    return (True if result else False) if boolean else result
+
+def add_holiday(df):
+    df['is_holiday'] = df['date'].apply(is_dutch_holiday)
+    return df
+
 
 def transform_to_relative_changes(df, feature):
     df[f'{feature}_relative_change'] = df[feature].pct_change()
@@ -39,9 +88,11 @@ def main(df, classifiction_model=False):
     df = add_previous_values(df, 'mood', 3)
     df = add_previous_values(df, 'valence', 3)
     df = add_previous_values(df, 'arousal', 3)
+    #mss ook nog doen voor de relative changes als die interessant blijken
 
     df = one_hot_encode_feature(df, 'id')
 
+    df = add_holiday(df)
 
     df = predict_feature(df, 'valence')
 
