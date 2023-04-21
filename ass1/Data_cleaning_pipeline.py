@@ -137,9 +137,9 @@ def MA_on_missing_values(dataframe, column, n):
     return dataframe
 
 
-def select_imputation_technique(dataframe, mean_values):
+def select_imputation_technique(dataframe, take_mean_of_surrounding_values):
 
-    if mean_values == True:
+    if take_mean_of_surrounding_values:
         dataframe = mean_between('mood', dataframe)
         dataframe = mean_between('circumplex.arousal', dataframe)
         dataframe = mean_between('circumplex.valence', dataframe)

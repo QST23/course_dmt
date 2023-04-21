@@ -108,6 +108,11 @@ def main(df, classifiction_model=False):
     if classifiction_model:
         df = round_feature(df, 'mood')
 
+    #delete all unused columns (date, etc)
+    #create target collumn for mood
+        #remember to check that the shift is correct (respectively per user)
+    #do final check and delete all rows with NaN values
+
     return df
 
 if __name__ == '__main__':
