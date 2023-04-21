@@ -177,7 +177,7 @@ def main(df):
 
     df = select_imputation_technique(df, True)
 
-    df.to_csv('ass1/Datasets/cleaned_data.csv', index=False)
+    df.to_csv('Datasets/cleaned_data.csv', index=False)
     return df
 
 
