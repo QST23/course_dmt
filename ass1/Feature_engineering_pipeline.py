@@ -2,6 +2,7 @@ import pandas as pd
 import datetime
 from dateutil import easter
 from dateutil.relativedelta import relativedelta
+import normalise_dataframe as ndf
 
 def is_dutch_holiday(date, boolean=True):
     """
@@ -48,6 +49,17 @@ def add_holiday(df):
     df['is_holiday'] = df['date'].apply(is_dutch_holiday)
     return df
 
+def find_day_of_week(df):
+    df['day_of_week'] = pd.to_datetime(df['date']).dt.day_name()
+    return df
+
+def is_weekend(df):
+    df['is_weekend'] = df['day_of_week'].isin(['Saturday', 'Sunday'])
+    return df
+
+def days_until_weekend(df):
+    df['days_until_weekend'] = df['day_of_week'].map({'Monday': 5, 'Tuesday': 4, 'Wednesday': 3, 'Thursday': 2, 'Friday': 1, 'Saturday': 0, 'Sunday': 0})
+    return df
 
 def add_relative_changes(df, feature):
     df[f'{feature}_relative_change'] = df[feature].pct_change()
@@ -80,6 +92,7 @@ def predict_feature(df:pd.DataFrame, feature:str):
         print("Could not import classification pipeline, so no feature was predicted.")
     return df
 
+
 def main(df, classifiction_model=False):
     #add previous values for mood
     df = add_previous_values(df, 'mood', n=3)
@@ -95,11 +108,15 @@ def main(df, classifiction_model=False):
         df = add_previous_values(df, feature, n=2)
         df = add_previous_values(df, f'{feature}_relative_change', n=2)
 
-    #one hot encode id
-    df = one_hot_encode_feature(df, 'id')
-
+    #dates
     #add whether the date is a holiday
     df = add_holiday(df)
+    #add the day of the week
+    df = find_day_of_week(df)
+    #add whether the day is a weekend
+    df = is_weekend(df)
+    #add the number of days until the weekend
+    df = days_until_weekend(df)
 
     #create a new feature that is the prediction of the next valence (same day as the to be predicted mood)
     df = predict_feature(df, 'circumplex.valence')
@@ -107,6 +124,22 @@ def main(df, classifiction_model=False):
     #round the mood to the nearest integer if a classification problem
     if classifiction_model:
         df = round_feature(df, 'mood')
+    
+    #normalise the collumns
+    collumns_to_exclude = ['day_of_week',
+       'is_weekend', 'days_until_weekend', 'is_holiday','date', 'id', 'call', 'sms',]
+
+    collumns_to_normalise_list = [col for col in df.columns if col not in collumns_to_exclude]
+
+    df = ndf.normalise_collumns_from_list(df, collumns_to_normalise_list)
+
+    #rescale all other columns to be between 0 and 1
+
+    #one hot encode id
+    df = one_hot_encode_feature(df, 'id')
+
+    #save the dataframe to a csv file
+    df.to_csv('ass1/Datasets/feature_engineered_data.csv', index=False)
 
     #delete all unused columns (date, etc)
     #create target collumn for mood

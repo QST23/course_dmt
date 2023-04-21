@@ -1,4 +1,4 @@
-import os
+import os, sys
 from fitter import Fitter
 from scipy.stats import *
 import pandas as pd
@@ -126,8 +126,8 @@ def fitter_to_model_and_params(best_fit:Fitter, method:str='sumsquare_error'):
     return stat_model, params
 
 
-def fit_statistical_models(df:pd.DataFrame, collumn):
-    fitter = Fitter(df[collumn])
+def fit_statistical_models(collumn_to_normalise, collumn_name):
+    fitter = Fitter(collumn_to_normalise)
     
     fitter.fit()
 
@@ -139,16 +139,24 @@ def fit_statistical_models(df:pd.DataFrame, collumn):
 
     #save the dictionary in a pickle file
     try:
-        with open(f'stastical_distributions/model_dict_{collumn}.pkl', 'wb') as f:
+        with open(f'stastical_distributions/model_dict_{collumn_name}.pkl', 'wb') as f:
             pickle.dump(model_dict, f)
     except FileNotFoundError:
-        with open(f'ass1/stastical_distributions/model_dict_{collumn}.pkl', 'wb') as f:
+        with open(f'ass1/stastical_distributions/model_dict_{collumn_name}.pkl', 'wb') as f:
             pickle.dump(model_dict, f)
     return model_dict
 
 
 def normalise_collumn(df:pd.DataFrame, collumn_name, only_collumn:bool=False):
-    model_dict = fit_statistical_models(df, collumn_name)
+    
+    col_to_normalise = df[collumn_name]
+    
+    #check if values are missing and skip them for the fit
+    if df[collumn_name].isna().sum() > 0:
+        print(f'!! {df[collumn_name].isna().sum()} values are missing. They will be skipped for the fit.')
+        col_to_normalise = df[collumn_name].dropna()
+
+    model_dict = fit_statistical_models(col_to_normalise, collumn_name)
     stat_model = model_dict['model']
     params = model_dict['params']
 
@@ -178,15 +186,21 @@ def apply_statistical_model(df:pd.DataFrame, collumn_name, only_collumn:bool=Fal
 
 
 def normalise_collumn_with_loaded_or_new_model(df, col):
-    #continue if there is not allready a file with the normalise model in the folder
-    if (not os.path.isfile(f'ass1/stastical_distributions/model_dict_{col}.pkl') and not os.path.isfile(f'stastical_distributions/model_dict_{col}.pkl')):
-        print('-'*100,f'\nfit a model for {col} and transform the collumn\n', '-'*100)
-        #fit a normalisation model and apply it to the collumn
-        normalised_col = normalise_collumn(df, collumn_name=col, only_collumn=True)
+    #check if collumn is related to another model (prev, target, next)
+    if ('prev' or 'target')  in col:
+        use_model_name = col.split('_')[0]
     else:
-        print('-'*50,f'\nfound model for {col}')
+        use_model_name = col
+
+    #continue if there is not allready a file with the normalise model in the folder
+    if (not os.path.isfile(f'ass1/stastical_distributions/model_dict_{use_model_name}.pkl') and not os.path.isfile(f'stastical_distributions/model_dict_{col}.pkl')):
+        print('-'*100,f'\nfit a model for {col} and transform the collumn ({use_model_name} not found)\n', '-'*100)
+        #fit a normalisation model and apply it to the collumn
+        normalised_col = normalise_collumn(df, collumn_name=use_model_name, only_collumn=True)
+    else:
+        print('-'*50,f'\nfound model for {col} ({use_model_name})')
         #transform the collumn with the allready existing model
-        normalised_col = apply_statistical_model(df, collumn_name=col, only_collumn=True)
+        normalised_col = apply_statistical_model(df, collumn_name=use_model_name, only_collumn=True)
 
     return normalised_col
 
@@ -195,7 +209,15 @@ def normalise_collumns_from_list(df:pd.DataFrame, collumns_list):
     #loop over collumns 
     for col in collumns_list:
         #normalise the collumn
-        df[col] = normalise_collumn_with_loaded_or_new_model(df, col)
+        try:
+            df[col] = normalise_collumn_with_loaded_or_new_model(df, col)
+        #catch if user interupts
+        except KeyboardInterrupt:
+            #quit program
+            sys.exit()
+        except Exception as e:
+            print(f'could not normalise {col}')
+            print(e)
     return df
 
 if __name__ == '__main__':  
@@ -218,7 +240,8 @@ if __name__ == '__main__':
 
     i = num_of_files+1
     runs = 3
-    normalise_collumns_from_list(df, to_normalise[i:i+runs])
+    normalise_collumns_from_list(df, to_normalise)
+    # normalise_collumns_from_list(df, 'screen')
 
     #let the computer speak that it is done
     os.system('say "your program has finished"')
