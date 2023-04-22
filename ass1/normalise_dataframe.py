@@ -147,13 +147,13 @@ def fit_statistical_models(collumn_to_normalise, collumn_name):
     return model_dict
 
 
-def normalise_collumn(df:pd.DataFrame, collumn_name, only_collumn:bool=False):
+def normalise_collumn(df:pd.DataFrame, collumn_name, only_collumn:bool=False, verbose:bool=False):
     
     col_to_normalise = df[collumn_name]
     
     #check if values are missing and skip them for the fit
     if df[collumn_name].isna().sum() > 0:
-        print(f'!! {df[collumn_name].isna().sum()} values are missing. They will be skipped for the fit.')
+        print(f'!! {df[collumn_name].isna().sum()} values are missing. They will be skipped for the fit.') if verbose else None
         col_to_normalise = df[collumn_name].dropna()
 
     model_dict = fit_statistical_models(col_to_normalise, collumn_name)
@@ -185,7 +185,7 @@ def apply_statistical_model(df:pd.DataFrame, collumn_name, only_collumn:bool=Fal
     return normalised if only_collumn else df
 
 
-def normalise_collumn_with_loaded_or_new_model(df, col):
+def normalise_collumn_with_loaded_or_new_model(df, col, verbose:bool=False):
     #check if collumn is related to another model (prev, target, next)
     if ('prev' or 'target')  in col:
         use_model_name = col.split('_')[0]
@@ -194,23 +194,23 @@ def normalise_collumn_with_loaded_or_new_model(df, col):
 
     #continue if there is not allready a file with the normalise model in the folder
     if (not os.path.isfile(f'ass1/stastical_distributions/model_dict_{use_model_name}.pkl') and not os.path.isfile(f'stastical_distributions/model_dict_{col}.pkl')):
-        print('-'*100,f'\nfit a model for {col} and transform the collumn ({use_model_name} not found)\n', '-'*100)
+        print('-'*100,f'\nfit a model for {col} and transform the collumn ({use_model_name} not found)\n', '-'*100) if verbose else None
         #fit a normalisation model and apply it to the collumn
-        normalised_col = normalise_collumn(df, collumn_name=use_model_name, only_collumn=True)
+        normalised_col = normalise_collumn(df, collumn_name=use_model_name, only_collumn=True, verbose=verbose)
     else:
-        print('-'*50,f'\nfound model for {col} ({use_model_name})')
+        print('-'*50,f'\nfound model for {col} ({use_model_name})') if verbose else None
         #transform the collumn with the allready existing model
         normalised_col = apply_statistical_model(df, collumn_name=use_model_name, only_collumn=True)
 
     return normalised_col
 
 
-def normalise_collumns_from_list(df:pd.DataFrame, collumns_list):
+def normalise_collumns_from_list(df:pd.DataFrame, collumns_list, verbose:bool=False):
     #loop over collumns 
     for col in collumns_list:
         #normalise the collumn
         try:
-            df[col] = normalise_collumn_with_loaded_or_new_model(df, col)
+            df[col] = normalise_collumn_with_loaded_or_new_model(df, col, verbose)
         #catch if user interupts
         except KeyboardInterrupt:
             #quit program
