@@ -6,8 +6,9 @@ import math
 from statsmodels.graphics.tsaplots import plot_acf
 from scipy import stats
 
+import Feature_engineering_pipeline as fep
 
-def group_df_and_aggregate(dataframe):
+def group_df_and_aggregate(dataframe:pd.DataFrame):
     dataframe['date'] = pd.to_datetime(dataframe['time']).dt.date
     dataframe['time'] = pd.to_datetime(dataframe['time']).dt.time
 
@@ -46,6 +47,16 @@ def remove_negative_values(dataframe, columns):
 # Apply different aggregation functions to different variables
 def aggregation_for_variables(dataframe):
     agg_dict = {'mood': 'mean', 'circumplex.arousal': 'mean', 'circumplex.valence': 'mean', 'activity': 'mean', 'screen': 'sum', 'call': 'sum', 'sms': 'sum', 'appCat.builtin': 'sum', 'appCat.communication': 'sum', 'appCat.entertainment': 'sum', 'appCat.finance': 'sum', 'appCat.game': 'sum', 'appCat.office': 'sum', 'appCat.other': 'sum', 'appCat.social': 'sum', 'appCat.travel': 'sum', 'appCat.unknown': 'sum', 'appCat.weather': 'sum', 'appCat.utilities': 'sum'}
+
+    late_night_cols = {col:'any' for col in dataframe.columns if 'late_night' in col}
+
+    #join the two dictionaries
+    agg_dict.update(late_night_cols)
+
+    # Create df where some of the columns values are summed and for some the mean is taken for each day
+    dataframe = dataframe.groupby(['date', 'id']).agg(agg_dict).reset_index()
+
+    return dataframe
 
     # Create df where some of the columns values are summed and for some the mean is taken for each day
     dataframe = dataframe.groupby(['date', 'id']).agg(agg_dict).reset_index()
@@ -88,7 +99,7 @@ def remove_starting_nan_until_n_values(dataframe, column_name, n_param):
                 n = count_nan 
                 added_df = df_for_user_i.iloc[n:]
                 added_df
-                new_df = new_df.append(added_df)
+                new_df = pd.concat([new_df, added_df], ignore_index=True)
                 break
 
     return new_df
@@ -167,7 +178,11 @@ def main(df):
 
     df = remove_negative_values(df, ['appCat.builtin', 'appCat.communication', 'appCat.entertainment', 'appCat.finance', 'appCat.game', 'appCat.office', 'appCat.other', 'appCat.social', 'appCat.travel', 'appCat.unknown', 'appCat.utilities', 'appCat.weather', 'screen', 'call', 'sms'])
 
-    # TO DO: remove extreme values
+    #all 
+    cols_of_interest_late_night_usage = [x for x in df.columns if x[:3] == 'app'] + ['call', 'sms', 'screen']
+
+    #add feature late night usage (is phone used late at night?)
+    df = fep.late_night_usage(df, cols_of_interest_late_night_usage)
 
     df = aggregation_for_variables(df)
 
@@ -175,7 +190,7 @@ def main(df):
     df = remove_starting_nan_until_n_values(df, 'mood', 4)
     df = remove_starting_nan_until_n_values(df, 'mood', 4)
 
-    df = select_imputation_technique(df, True)
+    df = select_imputation_technique(df, take_mean_of_surrounding_values=True)
 
     df.to_csv('Datasets/cleaned_data.csv', index=False)
     return df
