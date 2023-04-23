@@ -1,5 +1,6 @@
 import pandas as pd
-import datetime
+import numpy as np
+import datetime, sys
 from dateutil import easter
 from dateutil.relativedelta import relativedelta
 import normalise_dataframe as ndf
@@ -71,6 +72,9 @@ def is_dutch_holiday(date, boolean=True):
         datetime.date(date.year, 12, 25): 'Eerste Kerstdag',
         datetime.date(date.year, 12, 26): 'Tweede Kerstdag'
     }
+    # If the date is not a holiday, result = False
+    result = False
+
     if date in fixed_holidays:
         result = fixed_holidays[date]
 
@@ -79,8 +83,6 @@ def is_dutch_holiday(date, boolean=True):
     if date == kingsday:
         result = 'Koningsdag'
     
-    # If the date is not a holiday, result = False
-    result = False
 
     return (True if result else False) if boolean else result
 
@@ -88,20 +90,48 @@ def add_holiday(df):
     df['is_holiday'] = df['date'].apply(is_dutch_holiday)
     return df
 
-def find_day_of_week(df):
-    df['day_of_week'] = pd.to_datetime(df['date']).dt.day_name()
+def day_of_the_week(df:pd.DataFrame):
+    #find day of the week as integer
+    df['day_of_week'] = pd.to_datetime(df['date']).dt.dayofweek
     return df
+
+def add_date_features(df:pd.DataFrame):
+    df['year'] = pd.to_datetime(df['date']).dt.year
+    df['month'] = pd.to_datetime(df['date']).dt.month
+    df['day_of_month'] = pd.to_datetime(df['date']).dt.day
+
+    #check if year is nan
+    if df['year'].isna().any():
+        df['year'] = df['year'].fillna(2014)
+    return df
+
 
 def is_weekend(df):
-    df['is_weekend'] = df['day_of_week'].isin(['Saturday', 'Sunday'])
+    #check if day of the week is integer or string
+    if df['day_of_week'].dtype == 'int64':
+        df['is_weekend'] = df['day_of_week'].isin([5,6])
+    else:
+        df['is_weekend'] = df['day_of_week'].isin(['Saturday', 'Sunday'])
     return df
 
-def days_until_weekend(df):
-    df['days_until_weekend'] = df['day_of_week'].map({'Monday': 5, 'Tuesday': 4, 'Wednesday': 3, 'Thursday': 2, 'Friday': 1, 'Saturday': 0, 'Sunday': 0})
+def days_until_weekend(df:pd.DataFrame):
+    #check if day of the week is integer or string
+    if df['day_of_week'].dtype == 'int64':
+        #map day of the week to number of days until weekend
+        df['days_until_weekend'] = df['day_of_week'].map({0: 5, 1: 4, 2: 3, 3: 2, 4: 1, 5: 0, 6: 0})
+    else:
+        #map day of the week to number of days until weekend
+        df['days_until_weekend'] = df['day_of_week'].map({'Monday': 5, 'Tuesday': 4, 'Wednesday': 3, 'Thursday': 2, 'Friday': 1, 'Saturday': 0, 'Sunday': 0})
     return df
 
-def transform_to_pct_changes(df, feature):
-    df[f'{feature}_pct_change'] = df[feature].pct_change()
+def transform_to_pct_changes(df:pd.DataFrame, feature:str):
+    col = df[feature].pct_change()
+
+    #check if there are inf values
+    if col.isin([np.inf, -np.inf]).any():
+        print(f'inf values in {feature} pct change. Therefore skipped.')
+    else:
+        df[f'{feature}_pct_change'] = col
     return df
 
 def transform_to_absolute_changes(df, feature):
@@ -136,31 +166,44 @@ def predict_feature(df:pd.DataFrame, feature:str):
     return df
 
 
-def main(df, classifiction_model=False):
-    #add previous values for mood
-    df = add_previous_values(df, 'mood', n=3)
+def delete_unusable_features(df:pd.DataFrame):
+    #delete features that are not usable for the pipeline
+    features = ['date',
+                # 'activity_prev_1',
+                # 'activity_prev_2',
+                # 'activity_absolute_change_prev_1',
+                # 'activity_absolute_change_prev_2',
+                ]
 
-    #add relative changes for mood and its previous values
-    df = transform_to_pct_changes(df, 'mood')
-    df = transform_to_absolute_changes(df, 'mood')
-    df = add_previous_values(df, 'mood_pct_change', n=3)
-    df = add_previous_values(df, 'mood_absolute_change', n=3)
+    df = df.drop(['date'], axis=1)
+    return df
+
+def main(df:pd.DataFrame, classifiction_model=False, normalise=True):
+    #collumns to not normalize
+    columns_to_exclude = ['mood','day_of_week', 'year', 'month', 'day_of_month', 'is_holiday',
+       'is_weekend', 'days_until_weekend', 'is_holiday','date', 'id',]
 
     #add relative changes for valence and arousal and their previous values
-    support_features = ['circumplex.valence', 'circumplex.arousal', 'activity']
+    support_features = ['mood', 'circumplex.valence', 'circumplex.arousal', 'activity']
     for feature in support_features:
-        df = transform_to_pct_changes(df, feature)
-        df = transform_to_absolute_changes(df, feature)
-        df = add_previous_values(df, feature, n=2)
-        df = add_previous_values(df, f'{feature}_pct_change', n=2)
-        df = add_previous_values(df, f'{feature}_absolute_change', n=2)
+        #since mood is most important, we want to add more previous values for mood
+        n = 3 if feature == 'mood' else 2
 
+        df = add_previous_values(df, feature, n=n)
+        df = transform_to_absolute_changes(df, feature)
+        df = add_previous_values(df, f'{feature}_absolute_change', n=n)
+
+        #if zero does not exist in the feature we use the percentage change
+        if not df[feature].isin([0]).any():
+            df = transform_to_pct_changes(df, feature)
+            df = add_previous_values(df, f'{feature}_pct_change', n=n)
 
     #dates
+    df = add_date_features(df)
+    #add the day of the week
+    df = day_of_the_week(df)
     #add whether the date is a holiday
     df = add_holiday(df)
-    #add the day of the week
-    df = find_day_of_week(df)
     #add whether the day is a weekend
     df = is_weekend(df)
     #add the number of days until the weekend
@@ -172,31 +215,58 @@ def main(df, classifiction_model=False):
     #round the mood to the nearest integer if a classification problem
     if classifiction_model:
         df = round_feature(df, 'mood')
+
+    #normalise most columns
+    columns_to_normalise_list = [col for col in df.columns if col not in columns_to_exclude]
+    df = ndf.normalise_columns_from_list(df, columns_to_normalise_list, verbose=True) if normalise else df
+
+    #remove unusable features
+    df = delete_unusable_features(df)
     
-    #normalise the collumns
-    collumns_to_exclude = ['day_of_week',
-       'is_weekend', 'days_until_weekend', 'is_holiday','date', 'id', 'call', 'sms',]
-
-    collumns_to_normalise_list = [col for col in df.columns if col not in collumns_to_exclude]
-
-    df = ndf.normalise_collumns_from_list(df, collumns_to_normalise_list)
-
     #rescale all other columns to be between 0 and 1
+    df = ndf.rescale_all_columns(df, verbose=True)
 
     #one hot encode id
     df = one_hot_encode_feature(df, 'id')
 
-    #save the dataframe to a csv file
-    df.to_csv('ass1/Datasets/feature_engineered_data.csv', index=False)
 
-    #delete all unused columns (date, etc)
     #create target collumn for mood
         #remember to check that the shift is correct (respectively per user)
-    #do final check and delete all rows with NaN values
+    df['mood_target'] = df['mood'].shift(-1)
 
+    #do final check and delete all rows with NaN values
+    df = df.dropna()
+    
+    #print number of nans per feature
+    for col in df.columns:
+        print(f'{col}: {df[col].isna().sum()}')
+
+    #save the dataframe to a csv file
+    df.to_csv('ass1/Datasets/feature_engineered_data.csv', index=False)
     return df
 
 if __name__ == '__main__':
     df = pd.read_csv('ass1/Datasets/cleaned_data.csv')    
 
-    print(main(df))
+    df = main(df, normalise=True)
+
+    print(df.shape)
+
+
+
+
+    # def include_related_features(feature):
+    #     extra1 = ['', '_pct_change', '_absolute_change']
+    #     extra2 = ['', '_prev_1', '_prev_2', '_prev_3']
+    #     return np.array([[feature + extra + exextra for extra in extra1] for exextra in extra2]).flatten()
+
+    # cols_to_check = include_related_features('circumplex.valence')
+
+    # for col in cols_to_check:
+    #     try:
+    #         print(df[col].value_counts())
+    #         print(df[col].describe())
+    #     except KeyError:
+    #         print(f'KeyError for {col}')
+
+    # print(df.describe())
