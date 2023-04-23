@@ -171,10 +171,21 @@ def delete_unusable_features(df:pd.DataFrame):
     features = ['date',
                 ]
 
+    dates = df['date']
+
     df = df.drop(features, axis=1)
+    return df, dates
+
+def make_df_chronological(df:pd.DataFrame, dates:pd.Series, keep_dates:bool=False):
+    #make the dataframe chronological again
+    df['date'] = dates
+    df = df.sort_values(by='date')
+
+    #delete the date column again
+    df = df.drop('date', axis=1) if not keep_dates else df
     return df
 
-def main(df:pd.DataFrame, classifiction_model=False, normalise=True):
+def main(df:pd.DataFrame, classifiction_model=False, normalise=True, keep_dates=False):
     #collumns to not normalize
     columns_to_exclude = ['mood','day_of_week', 'year', 'month', 'day_of_month', 'is_holiday',
        'is_weekend', 'days_until_weekend', 'is_holiday','date', 'id', 'late_night_usage']
@@ -183,7 +194,7 @@ def main(df:pd.DataFrame, classifiction_model=False, normalise=True):
     support_features = ['mood', 'circumplex.valence', 'circumplex.arousal', 'activity']
     for feature in support_features:
         #since mood is most important, we want to add more previous values for mood
-        n = 3 if feature == 'mood' else 2
+        n = 7 if feature == 'mood' else 4
 
         df = add_previous_values(df, feature, n=n)
         df = transform_to_absolute_changes(df, feature)
@@ -213,7 +224,7 @@ def main(df:pd.DataFrame, classifiction_model=False, normalise=True):
     df = ndf.normalise_columns_from_list(df, columns_to_normalise_list, verbose=True) if normalise else df
 
     #remove unusable features
-    df = delete_unusable_features(df)
+    df, dates = delete_unusable_features(df)
     
     #rescale all other columns to be between 0 and 1
     df = ndf.rescale_all_columns(df, verbose=False)
@@ -231,6 +242,9 @@ def main(df:pd.DataFrame, classifiction_model=False, normalise=True):
         df['mood_target'] = ndf.back_scale_mood_target(df['mood_target'])
         df = round_feature(df, 'mood_target')
 
+    #make the dataframe chronological
+    df = make_df_chronological(df, dates, keep_dates=keep_dates)
+
     #do final check and delete all rows with NaN values
     df = df.dropna()
 
@@ -246,7 +260,7 @@ if __name__ == '__main__':
     df = pd.read_csv('ass1/Datasets/final_cleaned_data.csv') 
     print(df.head())   
 
-    df = main(df, normalise=True, classifiction_model=False)
+    df = main(df, normalise=True, classifiction_model=True, keep_dates=True)
 
     print(df.shape)
 
