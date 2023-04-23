@@ -169,19 +169,15 @@ def predict_feature(df:pd.DataFrame, feature:str):
 def delete_unusable_features(df:pd.DataFrame):
     #delete features that are not usable for the pipeline
     features = ['date',
-                # 'activity_prev_1',
-                # 'activity_prev_2',
-                # 'activity_absolute_change_prev_1',
-                # 'activity_absolute_change_prev_2',
                 ]
 
-    df = df.drop(['date'], axis=1)
+    df = df.drop(features, axis=1)
     return df
 
 def main(df:pd.DataFrame, classifiction_model=False, normalise=True):
     #collumns to not normalize
     columns_to_exclude = ['mood','day_of_week', 'year', 'month', 'day_of_month', 'is_holiday',
-       'is_weekend', 'days_until_weekend', 'is_holiday','date', 'id',]
+       'is_weekend', 'days_until_weekend', 'is_holiday','date', 'id', 'late_night_usage']
 
     #add relative changes for valence and arousal and their previous values
     support_features = ['mood', 'circumplex.valence', 'circumplex.arousal', 'activity']
@@ -212,43 +208,45 @@ def main(df:pd.DataFrame, classifiction_model=False, normalise=True):
     #create a new feature that is the prediction of the next valence (same day as the to be predicted mood)
     df = predict_feature(df, 'circumplex.valence')
 
-    #round the mood to the nearest integer if a classification problem
-    if classifiction_model:
-        df = round_feature(df, 'mood')
-
     #normalise most columns
-    columns_to_normalise_list = [col for col in df.columns if col not in columns_to_exclude]
+    columns_to_normalise_list = [col for col in df.columns if (col not in columns_to_exclude and not col[:4] == 'late')]
     df = ndf.normalise_columns_from_list(df, columns_to_normalise_list, verbose=True) if normalise else df
 
     #remove unusable features
     df = delete_unusable_features(df)
     
     #rescale all other columns to be between 0 and 1
-    df = ndf.rescale_all_columns(df, verbose=True)
+    df = ndf.rescale_all_columns(df, verbose=False)
 
     #one hot encode id
     df = one_hot_encode_feature(df, 'id')
-
 
     #create target collumn for mood
         #remember to check that the shift is correct (respectively per user)
     df['mood_target'] = df['mood'].shift(-1)
 
+    #round the mood to the nearest integer if a classification problem
+    if classifiction_model:
+        #rescale the mood_target to be between 1 and 10
+        df['mood_target'] = ndf.back_scale_mood_target(df['mood_target'])
+        df = round_feature(df, 'mood_target')
+
     #do final check and delete all rows with NaN values
     df = df.dropna()
-    
-    #print number of nans per feature
-    for col in df.columns:
-        print(f'{col}: {df[col].isna().sum()}')
 
     #save the dataframe to a csv file
-    df.to_csv('ass1/Datasets/feature_engineered_data.csv', index=False)
+    if classifiction_model:
+        name = 'ass1/Datasets/feature_engineered_data_classification.csv'
+    else:
+        name = 'ass1/Datasets/feature_engineered_data_regression.csv'
+    df.to_csv(name, index=False)
     return df
 
 if __name__ == '__main__':
-    df = pd.read_csv('ass1/Datasets/cleaned_data.csv')    
+    df = pd.read_csv('ass1/Datasets/final_cleaned_data.csv') 
+    print(df.head())   
 
-    df = main(df, normalise=True)
+    df = main(df, normalise=True, classifiction_model=False)
 
     print(df.shape)
 
