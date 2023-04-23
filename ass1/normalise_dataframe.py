@@ -1,3 +1,6 @@
+import numpy as np
+from pprint import pprint
+
 import os, sys
 from fitter import Fitter
 from scipy.stats import *
@@ -166,7 +169,7 @@ def normalise_collumn(df:pd.DataFrame, collumn_name, only_collumn:bool=False, ve
 
     return normalised if only_collumn else df
 
-def apply_statistical_model(df:pd.DataFrame, collumn_name, only_collumn:bool=False):
+def apply_statistical_model(df:pd.DataFrame, col_to_norm, collumn_name, only_collumn:bool=False):
     #load the model and its parameters from the pickle file
     try:
         with open(f'ass1/stastical_distributions/model_dict_{collumn_name}.pkl', 'rb') as f:
@@ -179,16 +182,21 @@ def apply_statistical_model(df:pd.DataFrame, collumn_name, only_collumn:bool=Fal
     params = model_dict['params']
 
     #apply the model to the collumn
-    normalised = stat_model.cdf(df[collumn_name], **params)
-    df[collumn_name] = normalised
+    normalised = stat_model.cdf(df[col_to_norm], **params)
 
-    return normalised if only_collumn else df
+    if only_collumn:
+        return normalised  
+    else:
+        df[col_to_norm] = normalised
+        return df
 
 
 def normalise_collumn_with_loaded_or_new_model(df, col, verbose:bool=False):
     #check if collumn is related to another model (prev, target, next)
-    if ('prev' or 'target')  in col:
-        use_model_name = col.split('_')[0]
+    if 'prev' in col:
+        use_model_name = col.split('_prev')[0]
+    elif 'target' in col:
+        use_model_name = col.split('_target')[0]
     else:
         use_model_name = col
 
@@ -200,12 +208,12 @@ def normalise_collumn_with_loaded_or_new_model(df, col, verbose:bool=False):
     else:
         print('-'*50,f'\nfound model for {col} ({use_model_name})') if verbose else None
         #transform the collumn with the allready existing model
-        normalised_col = apply_statistical_model(df, collumn_name=use_model_name, only_collumn=True)
+        normalised_col = apply_statistical_model(df, col_to_norm=col, use_model_name=use_model_name, only_collumn=True)
 
     return normalised_col
 
 
-def normalise_collumns_from_list(df:pd.DataFrame, collumns_list, verbose:bool=False):
+def normalise_columns_from_list(df:pd.DataFrame, collumns_list, verbose:bool=False):
     #loop over collumns 
     for col in collumns_list:
         #normalise the collumn
@@ -220,12 +228,133 @@ def normalise_collumns_from_list(df:pd.DataFrame, collumns_list, verbose:bool=Fa
             print(e)
     return df
 
+def rescale_date_values(df:pd.DataFrame, column_name):
+
+    scale = {
+        'year': {
+            2014: 0,
+            2015: 1,
+            '2014': 0,
+            '2015': 1,
+        },
+        'month': lambda x: x/12,
+        'day_of_month': lambda x: x/31,
+    }
+
+    #rescale the collumn by mapping the values to the corresponding values in the scale dictionary
+    df[column_name] = df[column_name].map(scale[column_name])
+    return df[column_name]
+
+def scale_to_ranges(df:pd.DataFrame, column_name, range_name=None,):
+    #set the range name to the column name if no range name is given
+    range_name = range_name or column_name
+
+    scale = {
+        'mood': {'min': 1, 'max': 10},
+        'activity' : {'min': 0, 'max': 1},
+        'circumplex.arousal' : {'min': -2, 'max': 2},
+        'circumplex.valence' : {'min': -2, 'max': 2},
+    }
+
+    #rescale the collumn by mapping the values to the corresponding values in the scale dictionary
+    df[column_name] = df[column_name].map(lambda x: (x - scale[range_name]['min']) / (scale[range_name]['max'] - scale[range_name]['min']))
+    return df[column_name]
+
+#test rescaler
+#test rescaler
+def find_new_constants(df, column_name, path, rescale_constants={}):
+    #get the min and max values from the collumn
+    col_min = df[column_name].min()
+    col_max = df[column_name].max()
+
+    #save the min and max values in a dictionary
+    rescale_constants[column_name] = {
+            'min': col_min,
+            'max': col_max,
+        }
+
+    #save the dictionary in a new pickle file
+    with open(path, 'wb') as f:
+        pickle.dump(rescale_constants, f)
+    
+    return rescale_constants
+
+
+def rescale_all_others(df, column_name):
+    print('rescale', column_name)
+    #load file called "rescale_constants.pkl" from the folder "rescale_constants"
+    try:
+        path = 'ass1/rescale_constants.pkl'
+        with open(path, 'rb') as f:
+            rescale_constants = pickle.load(f)
+    except FileNotFoundError:   
+        try:
+            path = 'rescale_constants.pkl'
+            with open(path, 'rb') as f:
+                rescale_constants = pickle.load(f)
+        except:
+            rescale_constants = find_new_constants(df, column_name, path)
+
+    #check if the collumn is in dict
+    if column_name not in rescale_constants:
+        #if not, find the new min and max values
+        rescale_constants = find_new_constants(df, column_name, path, rescale_constants)
+
+    pprint(rescale_constants)
+
+    #get the min and max values from the file
+    col_min = rescale_constants[column_name]['min']
+    col_max = rescale_constants[column_name]['max']
+
+    #rescale the collumn
+    df[column_name] = (df[column_name] - col_min) / (col_max - col_min)
+    
+    return df[column_name]
+
+
+def rescale_all_columns(df:pd.DataFrame, verbose=False):
+    #rescale all collumns
+    for col in df.columns:
+        #check if collumn is of type string
+        if df[col].dtype == 'object':
+            print(col, 'is of type object') if verbose else None
+            #do nothing
+            pass
+        #check if collumn is boolean or binary
+        elif df[col].dtype == 'bool':
+            #map to binary
+            df[col] = df[col].map({True:1, False:0})
+        #check if collumn already is between 0 and 1
+        elif df[col].min() >= 0 and df[col].max() <= 1:
+            #do nothing
+            pass
+        #check if collumn is a date
+        elif col in ['year', 'month', 'day_of_month']:
+            #rescale to 0 and 1
+            df[col] = rescale_date_values(df, col)
+        elif col in ['mood', 'activity', 'circumplex.arousal', 'circumplex.valence']:
+            #rescale to 0 and 1
+            df[col] = scale_to_ranges(df, col)
+        elif 'prev' in col:
+            #rescale to 0 and 1
+            df[col] = scale_to_ranges(df, col, range_name=col.split('_')[0])
+        else:
+            #check for infinities
+            if df[col].min() == -np.inf or df[col].max() == np.inf:
+                print(col, 'has infinities') if verbose else None
+            #rescale to 0 and 1
+            df[col] = rescale_all_others(df, col)
+    return df
+
 if __name__ == '__main__':  
     # print(os.path.isfile(f'ass1/stastical_distributions/model_dict_mood.pkl'))
-    import sys
 
     df = pd.read_csv('ass1/Datasets/temp_feat.csv')
 
+
+    print(rescale_all_columns(df))
+
+    sys.exit()
     to_normalise = ['mood', 'circumplex.arousal', 'circumplex.valence', 'activity',
        'screen', 'appCat.builtin', 'appCat.communication',
        'appCat.entertainment', 'appCat.finance', 'appCat.game',
@@ -240,7 +369,7 @@ if __name__ == '__main__':
 
     i = num_of_files+1
     runs = 3
-    normalise_collumns_from_list(df, to_normalise)
+    normalise_columns_from_list(df, to_normalise)
     # normalise_collumns_from_list(df, 'screen')
 
     #let the computer speak that it is done
