@@ -192,7 +192,7 @@ def main(df):
 
     df = select_imputation_technique(df, take_mean_of_surrounding_values=True)
 
-    df.to_csv('Datasets/cleaned_data.csv', index=False)
+    df.to_csv('ass1/Datasets/final_cleaned_data.csv', index=False)
     return df
 
 

@@ -208,7 +208,7 @@ def normalise_collumn_with_loaded_or_new_model(df, col, verbose:bool=False):
     else:
         print('-'*50,f'\nfound model for {col} ({use_model_name})') if verbose else None
         #transform the collumn with the allready existing model
-        normalised_col = apply_statistical_model(df, col_to_norm=col, use_model_name=use_model_name, only_collumn=True)
+        normalised_col = apply_statistical_model(df, col_to_norm=col, collumn_name=use_model_name, only_collumn=True)
 
     return normalised_col
 
@@ -300,8 +300,6 @@ def rescale_all_others(df, column_name):
         #if not, find the new min and max values
         rescale_constants = find_new_constants(df, column_name, path, rescale_constants)
 
-    pprint(rescale_constants)
-
     #get the min and max values from the file
     col_min = rescale_constants[column_name]['min']
     col_max = rescale_constants[column_name]['max']
@@ -311,6 +309,9 @@ def rescale_all_others(df, column_name):
     
     return df[column_name]
 
+def back_scale_mood_target(mood_target_collumn:pd.Series)->pd.Series:
+    mood_target_collumn = mood_target_collumn * 9 + 1
+    return mood_target_collumn
 
 def rescale_all_columns(df:pd.DataFrame, verbose=False):
     #rescale all collumns
