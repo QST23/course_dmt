@@ -79,7 +79,7 @@ def is_dutch_holiday(date, boolean=True):
         result = fixed_holidays[date]
 
     # Check for variable holidays
-    kingsday = datetime.date(date.year, 4, 26) if date.weekday() == 0 else datetime.date(date.year, 4, 27)
+    kingsday = datetime.date(date.year, 4, 26) if date.weekday() == 6 else datetime.date(date.year, 4, 27)
     if date == kingsday:
         result = 'Koningsdag'
     
@@ -205,7 +205,7 @@ def main(df:pd.DataFrame, classifiction_model=False, normalise=True, keep_dates=
             df = transform_to_pct_changes(df, feature)
             df = add_previous_values(df, f'{feature}_pct_change', n=n)
 
-    #dates
+    #add year, month and day of the month
     df = add_date_features(df)
     #add the day of the week
     df = day_of_the_week(df)

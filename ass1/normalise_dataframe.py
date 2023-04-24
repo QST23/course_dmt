@@ -169,13 +169,13 @@ def normalise_collumn(df:pd.DataFrame, collumn_name, only_collumn:bool=False, ve
 
     return normalised if only_collumn else df
 
-def apply_statistical_model(df:pd.DataFrame, col_to_norm, collumn_name, only_collumn:bool=False):
+def apply_statistical_model(df:pd.DataFrame, col_to_norm:str, model_name:str, only_collumn:bool=False):
     #load the model and its parameters from the pickle file
     try:
-        with open(f'ass1/stastical_distributions/model_dict_{collumn_name}.pkl', 'rb') as f:
+        with open(f'ass1/stastical_distributions/model_dict_{model_name}.pkl', 'rb') as f:
             model_dict = pickle.load(f)
     except FileNotFoundError:
-        with open(f'stastical_distributions/model_dict_{collumn_name}.pkl', 'rb') as f:
+        with open(f'stastical_distributions/model_dict_{model_name}.pkl', 'rb') as f:
             model_dict = pickle.load(f)
 
     stat_model = model_dict['model']
@@ -208,7 +208,7 @@ def normalise_collumn_with_loaded_or_new_model(df, col, verbose:bool=False):
     else:
         print('-'*50,f'\nfound model for {col} ({use_model_name})') if verbose else None
         #transform the collumn with the allready existing model
-        normalised_col = apply_statistical_model(df, col_to_norm=col, collumn_name=use_model_name, only_collumn=True)
+        normalised_col = apply_statistical_model(df, col_to_norm=col, model_name=use_model_name, only_collumn=True)
 
     return normalised_col
 
