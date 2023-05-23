@@ -72,24 +72,45 @@ def season_stay(df:pd.DataFrame) -> pd.DataFrame:
     fall = range(264, 355)
 
     #make column with season
-    df['season_stay'] = np.where(df['mean_day_stay'].isin(spring), 'spring', 
-                                 np.where(df['mean_day_stay'].isin(summer), 'summer', 
-                                          np.where(df['mean_day_stay'].isin(fall), 'fall', 'winter')))
+    df['season_stay'] = np.where(df['mean_day_stay'].isin(spring), 1, 
+                                 np.where(df['mean_day_stay'].isin(summer), 2, 
+                                          np.where(df['mean_day_stay'].isin(fall), 3, 0)))
     
     return df
 
+
+def drop_date_time(df:pd.DataFrame) -> pd.DataFrame:
+    """
+    Drop columns with date_time, mean_date_stay and mean_day_stay
+    """
+    df = df.drop(['date_time', 'mean_date_stay'], axis=1)
+    
+    return df
+
+
+#rescale all columns to [0,1]
+def rescaler(df : pd.DataFrame):
+    for col in df.columns:
+        # except for the id columns
+        if not (col.endswith('_id') or col == 'season_stay'):
+            df[col] = (df[col] - df[col].min()) / (df[col].max() - df[col].min())
+    return df
+
+
 def save_df(df:pd.DataFrame, path):
-    df.write_csv(path)
+    df.to_csv(path, index=False)
 
 def main(df:pd.DataFrame, path='')->pd.DataFrame:
 
     df = convert_datetime(df)
     df = Boolean_weekend(df)
     df = international_stay(df)
-    df = price_per_night(df)
+    #df = price_per_night(df)
     df = accept_children(df)
     df = mean_day_stay(df)
     df = season_stay(df)
+    df = drop_date_time(df)
+    df = rescaler(df)
 
     if path:
         save_df(df, path)
@@ -100,9 +121,10 @@ def main(df:pd.DataFrame, path='')->pd.DataFrame:
 if __name__ == "__main__":
 
     # create a dataframe
-    df = pd.read_csv('datasets/training_set_VU_DM.csv')
+    df = pd.read_csv('datasets/data_cleaned.csv')
 
     # run the pipeline
-    df = main(df, path='/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_engineered_data.csv')
+    df = main(df, path='datasets/feature_engineered_data.csv')
+    #df = main(df, path='/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_engineered_data.csv')
 
-    print(df)
+    df
