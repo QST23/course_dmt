@@ -9,7 +9,8 @@ from sklearn.model_selection import train_test_split
 
 import df_maker
 
-def train_test(df:pd.DataFrame, target_column, test_size=0.2, random_state=None):
+
+def train_test(df:pd.DataFrame, target_column, test_size=0.2, random_state=None)->tuple:
 
     if random_state:
         # Split the data into train and validation sets
@@ -19,6 +20,7 @@ def train_test(df:pd.DataFrame, target_column, test_size=0.2, random_state=None)
         X_train, X_test, y_train, y_test = train_test_split(df, target_column, test_size=test_size)
 
     return X_train, X_test, y_train, y_test
+
 
 def create_target_column(df:pd.DataFrame, params:dict)->pd.Series:
 
@@ -33,7 +35,7 @@ def create_target_column(df:pd.DataFrame, params:dict)->pd.Series:
     # return the score function values 
     return score_function
 
-
+# for simulating the xgboost model
 def xgboost_ranker(X_train, X_test, y_train, y_test, xgb_params):
     return random.random()
 
@@ -48,7 +50,7 @@ def objective(trial:optuna.Trial):
         'no_interaction_weight' : trial.suggest_float('no_interaction_weight', 0.1, 1.0),
     }
 
-    # set the parameters for the xgboost model (for now not to optimised)
+    # set the parameters for the xgboost model (semi arbitrary and not optimised)
     xgb_params = {
         'objective': 'rank:ndcg',
         'learning_rate': 0.1,
@@ -70,19 +72,19 @@ def objective(trial:optuna.Trial):
     )
 
 
-    # train a model on the training data (with ndcg)
+    #TODO: train a model on the training data (with ndcg)
     ''' 
     #call a function that trains a model on the training data
     model = xgboost_ranker(train_x, valid_x, train_y, valid_y, xgb_params)'''
 
-    # evaluate the model on the validation data
+    #TODO: evaluate the model on the validation data
     '''predictions = model.predict(valid_x)
 
-    #evaluate would be a function that returns the ndcg score
+    #evaluate would than be a function that returns the ndcg score based on the predictions and the validation data
     score = evaluate(valid_y, predictions)'''
     
 
-    # return the ndcg score as the objective value so that optuna knows how this set of parameters performed
+    #TODO: return the ndcg score as the objective value so that optuna knows how this set of parameters performed
     
     return 0
 
@@ -94,6 +96,7 @@ def report(study: optuna.Study):
     for params, values in best_params.items():
         print(f"   {params}: {round(values, 2)}")
 
+    return
 
 def save_study(study:optuna.Study, time_of_start:str):
     
