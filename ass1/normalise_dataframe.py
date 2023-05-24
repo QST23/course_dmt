@@ -245,7 +245,7 @@ def rescale_date_values(df:pd.DataFrame, column_name):
     df[column_name] = df[column_name].map(scale[column_name])
     return df[column_name]
 
-def scale_to_ranges(df:pd.DataFrame, column_name, range_name=None,):
+def scale_to_preset_ranges(df:pd.DataFrame, column_name, range_name=None,):
     #set the range name to the column name if no range name is given
     range_name = range_name or column_name
 
@@ -335,10 +335,10 @@ def rescale_all_columns(df:pd.DataFrame, verbose=False):
             df[col] = rescale_date_values(df, col)
         elif col in ['mood', 'activity', 'circumplex.arousal', 'circumplex.valence']:
             #rescale to 0 and 1
-            df[col] = scale_to_ranges(df, col)
+            df[col] = scale_to_preset_ranges(df, col)
         elif 'prev' in col:
             #rescale to 0 and 1
-            df[col] = scale_to_ranges(df, col, range_name=col.split('_')[0])
+            df[col] = scale_to_preset_ranges(df, col, range_name=col.split('_')[0])
         else:
             #check for infinities
             if df[col].min() == -np.inf or df[col].max() == np.inf:
