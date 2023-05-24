@@ -121,7 +121,7 @@ def save_study(study:optuna.Study, time_of_start:str):
 
 def main():
 
-    starting_date = time.strftime("%Y-%m-%d_%H:%M:%S", time.gmtime())
+    starting_date = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
 
     # Create a study object and start optimisation
     study = optuna.create_study()
