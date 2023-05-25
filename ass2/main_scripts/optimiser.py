@@ -17,8 +17,6 @@ EXCLUDE_FROM_ALL = ['prop_id', 'target', 'position', 'click_bool', 'booking_bool
 EXCLUDE_FROM_TRAINING = ['srch_id']
 EXCLUDE_FROM_TESTING = []
 
-VERBOSE = False
-
 
 def train_test(df:pd.DataFrame, target_column, test_size=0.2, random_state=None)->tuple:
 
@@ -101,7 +99,7 @@ def objective(trial:optuna.Trial):
     model, predictions, ndcg = xgb_ranker(train_x, valid_x, train_y, valid_y, groups, xgb_params, verbose=VERBOSE)
     end_time = time.time()
     elapsed_time_before = end_time - start_time
-    print("Elapsed time before improvements:", elapsed_time_before)
+    print("Elapsed time train/evaluate:", round(elapsed_time_before,2))
 
     return ndcg
 
@@ -136,27 +134,67 @@ def save_study(study:optuna.Study, study_name:str, time_of_start:str):
 
     print('Study saved as: ' + study_name + "_" + time_of_start)
 
-def main():
 
-    starting_date = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
+def load_study(study_name:str, time_of_start:str, get_trials_df:bool=False)->tuple:
+    
+        #make paths
+        path = "ass2/optimise_results/" + study_name + "_" + time_of_start + "/"
+        trial_res_path = path + 'trial_results.csv'
+        study_path = path + 'study.pkl'
+    
+        #load study object
+        with open(study_path, 'rb') as f:
+            study = pickle.load(f)
+    
+        #load trial results
+        trials_df = pd.read_csv(trial_res_path) if get_trials_df else None
+    
+        return study, trials_df
 
-    study_name = 'score_funct_0'
+def make_study(new_study:bool=True, study_name:str='', starting_date:str=''):
 
-    # Create a study object and start optimisation
-    study = optuna.create_study(direction='maximize', 
+    if new_study:
+        study, trials_df = load_study(study_name, starting_date, get_trials_df=False)
+        print('Study loaded: ' + study_name + "_" + starting_date)
+        print('Currently:')
+        report(study)
+    else:
+        starting_date = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
+        study_name = STUDY_NAME
+
+        print('Starting new study: ' + study_name + "_" + starting_date)
+
+        # Create a study object and start optimisation
+        study = optuna.create_study(direction='maximize', 
                                 study_name=study_name, 
                                 # storage='sqlite:///ass2/optimise_results/' + study_name + '/study.db'
                                 )
-    study.optimize(objective, n_trials=10)
+    
+    return study
+
+def main(load_study:bool=False, study_name:str='', starting_date:str=''):
+
+    study = make_study(load_study, study_name, starting_date)
+        
+    try:       
+        study.optimize(objective, n_trials=N_TRIALS)
+    except KeyboardInterrupt:
+        print('Interrupted by user')
+        pass
 
     # Save the optimisation results
     save_study(study, study_name=study_name, time_of_start=f'{starting_date}')
-
+    
     report(study)
 
 if __name__ == '__main__':
 
-    path = 'ass2/datasets/feature_0.1_sample.csv'
+    STUDY_NAME = 'tot_score_funct100'
+    N_TRIALS = 100
+    VERBOSE = True
+
+    path = 'ass2/datasets/feature_engineered_data.csv'
+    # path = 'ass2/datasets/feature_0.1_sample.csv'
 
     df = df_maker.make_df(df_path='', clean_df_path='', feature_df_path=path)
 
@@ -168,4 +206,7 @@ if __name__ == '__main__':
 
     #TODO: when score function is static, the target column is added in df and the train test split can be done outside of the objective function
 
-    main()
+    main(load_study=True, 
+         study_name=STUDY_NAME, 
+         starting_date='2023-05-25_16-04-58' #maybe false since gross feature included
+         )
