@@ -12,7 +12,7 @@ def convert_datetime(df:pd.DataFrame)->pd.DataFrame:
 
     df['month'] = df['date_time'].dt.month
 
-    df['day'] = df['date_time'].dt.dayofweek
+    df['day_of_week'] = df['date_time'].dt.dayofweek
 
     df['hour'] = df['date_time'].dt.hour
     
@@ -22,7 +22,7 @@ def Boolean_weekend(df:pd.DataFrame)->pd.DataFrame:
     """
     Make column with Boolean value for whether it was a weekend day.
     """
-    df['weekend'] = np.where(df['day'] < 5, 0, 1)
+    df['weekend'] = np.where(df['day_of_week'] < 5, 0, 1)
 
     return df
 
@@ -46,7 +46,11 @@ def accept_children(df:pd.DataFrame) -> pd.DataFrame:
     """
     Make column with Boolean value for when children are sought for in the search and a hotel was present in the search result
     """
-    df['children_accepted'] = np.where((df['srch_children_count'] > 0) & (df['prop_id'] > 0), 1, 0)
+    #make list of hotels in search result when children are sought for in the search
+    children_hotels = df[df['srch_children_count'] > 0]['prop_id'].unique()
+
+    #make column with children_accepted when prop_id is in the children_hotels list
+    df['children_accepted'] = np.where(df['prop_id'].isin(children_hotels), 1, 0)
 
     return df
 
@@ -56,8 +60,8 @@ def mean_day_stay(df:pd.DataFrame) -> pd.DataFrame:
     """
     df['mean_date_stay'] = df['date_time'] + pd.to_timedelta(df['srch_booking_window'], unit='d') + (pd.to_timedelta(df['srch_length_of_stay'], unit='d')/2)
     #skip hours and minutes
-    df['mean_date_stay'] = df['mean_date_stay'].dt.date
-    df['mean_date_stay'] = pd.to_datetime(df['mean_date_stay'])
+    #df['mean_date_stay'] = df['mean_date_stay'].dt.date
+    #df['mean_date_stay'] = pd.to_datetime(df['mean_date_stay'])
     #convert to day of year
     df['mean_day_stay'] = df['mean_date_stay'].dt.dayofyear
 
