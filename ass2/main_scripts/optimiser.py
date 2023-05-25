@@ -23,7 +23,7 @@ def train_test(df:pd.DataFrame, target_column, test_size=0.2, random_state=None)
     #add target column to df
     df.loc[:, 'target'] = target_column
 
-    gss = GroupShuffleSplit(test_size=.40, n_splits=1, random_state = 7).split(df, groups=df['srch_id'])
+    gss = GroupShuffleSplit(test_size=test_size, n_splits=1, random_state = 7).split(df, groups=df['srch_id'])
 
     X_train_inds, X_test_inds = next(gss)
 
@@ -50,7 +50,7 @@ def create_target_column(df:pd.DataFrame, params:dict)->pd.Series:
     score_function = (
         params['booking_weight'] * df['booking_bool'] +
         params['click_weight'] * df['click_bool'] +
-        params['position_weight'] * df['position'] +
+        params['position_weight'] * df['position'].where(df['position'] <= params['top_n_positions'], 0) +
         params['no_interaction_weight'] * (1 - df['booking_bool'] - df['click_bool'])
     )
 
@@ -67,6 +67,7 @@ def objective(trial:optuna.Trial):
         'click_weight' : trial.suggest_float('click_weight', 0.1, 1.0),
         'position_weight' : trial.suggest_float('position_weight', 0.1, 1.0),
         'no_interaction_weight' : trial.suggest_float('no_interaction_weight', 0.1, 1.0),
+        'top_n_positions' : trial.suggest_int('top_n_positions', 5, 20)
     }
 
     # set the parameters for the xgboost model (semi arbitrary and not optimised)
@@ -82,9 +83,7 @@ def objective(trial:optuna.Trial):
     # create the target column by using a scorefunction that includes the parameters
     target_column = create_target_column(df, params)
 
-
     #TODO: move the train test split outside of the objective function when the score function is static
-
     # Split the data into train and validation sets 
     train_x, valid_x, train_y, valid_y, groups = train_test(
         df, 
@@ -93,8 +92,6 @@ def objective(trial:optuna.Trial):
         random_state=0
     )
 
-
-    #TODO: train a model on the training data (with ndcg)   
     start_time = time.time()
     model, predictions, ndcg = xgb_ranker(train_x, valid_x, train_y, valid_y, groups, xgb_params, verbose=VERBOSE)
     end_time = time.time()
@@ -130,7 +127,6 @@ def save_study(study:optuna.Study, study_name:str, time_of_start:str):
     #save trial results
     trials_df = study.trials_dataframe()
     trials_df.to_csv(trial_res_path)
-
 
     print('Study saved as: ' + study_name + "_" + time_of_start)
 
@@ -189,9 +185,42 @@ def main(load_study:bool=False, study_name:str='', starting_date:str=''):
 
 if __name__ == '__main__':
 
+    '''
+    ########################################
+    Currently, the script is set up to optimise the SCORE FUNCTION
+    
+    Only important thing to run the script:
+    adjust LOAD_STUDY to True if you want to continue optimising an existing study
+        set to false if you want to start a new study
+
+    A study is the object created by optuna to keep track of the optimisation process
+    It contains the trials and the best parameters found so far
+    
+    The study is saved in a folder with the name of the study and the starting date
+    By default, the study is saved in the optimise_results folder
+    The study object can be retrieved by using the load_study function 
+        When loaded, the study can be continued
+    ########################################
+    Constants to adjust:
+
+    STUDY_NAME is the name of the study that is saved
+
+    N_TRIALS is the number of trials optuna will run to find the best parameters
+
+    TRAINING_FRACTION is the fraction of the data that is used for training
+    
+    VERBOSE is a boolean to determine wether updates are printed during the optimisation
+
+    If LOAD_STUDY is True, the study_name and starting_date are 
+    used to load the study and continue optimising the existing study
+    '''
+
+
     STUDY_NAME = 'tot_score_funct100'
     N_TRIALS = 100
+    TRAINING_FRACTION = 0.1
     VERBOSE = True
+    LOAD_STUDY = False
 
     path = 'ass2/datasets/feature_engineered_data.csv'
     # path = 'ass2/datasets/feature_0.1_sample.csv'
@@ -199,14 +228,14 @@ if __name__ == '__main__':
     df = df_maker.make_df(df_path='', clean_df_path='', feature_df_path=path)
 
     #sample df smaller
-    gss = GroupShuffleSplit(test_size=.60, n_splits=1, random_state = 7).split(df, groups=df['srch_id'])
+    gss = GroupShuffleSplit(test_size=1-TRAINING_FRACTION, n_splits=1, random_state = 7).split(df, groups=df['srch_id'])
     small_set_indx, rest_set = next(gss)
     small_set = df.iloc[small_set_indx]
     df = small_set
 
     #TODO: when score function is static, the target column is added in df and the train test split can be done outside of the objective function
 
-    main(load_study=True, 
+    main(load_study=LOAD_STUDY, 
          study_name=STUDY_NAME, 
-         starting_date='2023-05-25_16-04-58' #maybe false since gross feature included
+         starting_date='2023-05-25_16-04-58' 
          )
