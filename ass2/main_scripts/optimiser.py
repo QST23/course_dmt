@@ -6,20 +6,44 @@ import polars as pl
 import numpy as np
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupShuffleSplit
 
 import df_maker
+from XGBoost_pipeline import xgb_ranker
+
+#constants
+EXCLUDE_FROM_ALL = ['prop_id', 'target', 'position', 'click_bool', 'booking_bool']
+
+EXCLUDE_FROM_TRAINING = ['srch_id']
+EXCLUDE_FROM_TESTING = []
+
+VERBOSE = False
 
 
 def train_test(df:pd.DataFrame, target_column, test_size=0.2, random_state=None)->tuple:
 
-    if random_state:
-        # Split the data into train and validation sets
-        X_train, X_test, y_train, y_test = train_test_split(df, target_column, test_size=test_size, random_state=random_state)
-    else:   
-        # Split the data into train and validation sets
-        X_train, X_test, y_train, y_test = train_test_split(df, target_column, test_size=test_size)
+    #add target column to df
+    df.loc[:, 'target'] = target_column
 
-    return X_train, X_test, y_train, y_test
+    gss = GroupShuffleSplit(test_size=.40, n_splits=1, random_state = 7).split(df, groups=df['srch_id'])
+
+    X_train_inds, X_test_inds = next(gss)
+
+    #train test split
+    train_data = df.iloc[X_train_inds]
+    test_data = df.iloc[X_test_inds]
+
+    #create groups
+    groups = train_data.groupby('srch_id').size().to_frame('size')['size'].to_numpy()
+
+
+    #split target column from x_train and x_test
+    X_train = train_data.drop(EXCLUDE_FROM_ALL + EXCLUDE_FROM_TRAINING, axis=1)
+    X_test = test_data.drop(EXCLUDE_FROM_ALL + EXCLUDE_FROM_TESTING, axis=1)
+    y_train = train_data['target']
+    y_test = test_data[['position', 'srch_id']]
+
+    return X_train, X_test, y_train, y_test, groups
 
 
 def create_target_column(df:pd.DataFrame, params:dict)->pd.Series:
@@ -32,13 +56,10 @@ def create_target_column(df:pd.DataFrame, params:dict)->pd.Series:
         params['no_interaction_weight'] * (1 - df['booking_bool'] - df['click_bool'])
     )
 
+    target_colum = score_function.copy()
+
     # return the score function values 
-    return score_function
-
-# for simulating the xgboost model
-def xgboost_ranker(X_train, X_test, y_train, y_test, xgb_params):
-    return random.random()
-
+    return target_colum
 
 def objective(trial:optuna.Trial):
 
@@ -52,19 +73,22 @@ def objective(trial:optuna.Trial):
 
     # set the parameters for the xgboost model (semi arbitrary and not optimised)
     xgb_params = {
-        'objective': 'rank:ndcg',
-        'learning_rate': 0.1,
-        'gamma': 1.0,
-        'min_child_weight': 0.1,
-        'max_depth': 5,
-        'n_estimators': 100
+        # 'objective': 'rank:ndcg',
+        # 'learning_rate': 0.1,
+        # 'gamma': 1.0,
+        # 'min_child_weight': 0.1,
+        # 'max_depth': 5,
+        # 'n_estimators': 100
     }
 
     # create the target column by using a scorefunction that includes the parameters
     target_column = create_target_column(df, params)
 
+
+    #TODO: move the train test split outside of the objective function when the score function is static
+
     # Split the data into train and validation sets 
-    train_x, valid_x, train_y, valid_y = train_test(
+    train_x, valid_x, train_y, valid_y, groups = train_test(
         df, 
         target_column=target_column, 
         test_size=0.25, 
@@ -72,24 +96,14 @@ def objective(trial:optuna.Trial):
     )
 
 
-    #TODO: train a model on the training data (with ndcg)
-    ''' 
-    #call a function that trains a model on the training data
-    model = xgboost_ranker(train_x, valid_x, train_y, valid_y, xgb_params)'''
-    
-    model, predictions, ndcg = xgboost_ranker(train_x, valid_x, train_y, valid_y, xgb_params)
+    #TODO: train a model on the training data (with ndcg)   
+    start_time = time.time()
+    model, predictions, ndcg = xgb_ranker(train_x, valid_x, train_y, valid_y, groups, xgb_params, verbose=VERBOSE)
+    end_time = time.time()
+    elapsed_time_before = end_time - start_time
+    print("Elapsed time before improvements:", elapsed_time_before)
 
-    #TODO: evaluate the model on the validation data
-
-    '''predictions = model.predict(valid_x)
-
-    #evaluate would than be a function that returns the ndcg score based on the predictions and the validation data
-    score = evaluate(valid_y, predictions)'''
-    
-
-    #TODO: return the ndcg score as the objective value so that optuna knows how this set of parameters performed
-    
-    return 0
+    return ndcg
 
 
 def report(study: optuna.Study):
@@ -101,10 +115,10 @@ def report(study: optuna.Study):
 
     return
 
-def save_study(study:optuna.Study, time_of_start:str):
+def save_study(study:optuna.Study, study_name:str, time_of_start:str):
     
     #make repository for both trial results and study
-    path = "ass2/optimise_results/" + time_of_start + "/"
+    path = "ass2/optimise_results/" + study_name + "_" + time_of_start + "/"
     os.mkdir(path)
 
     #make paths
@@ -120,18 +134,23 @@ def save_study(study:optuna.Study, time_of_start:str):
     trials_df.to_csv(trial_res_path)
 
 
-    print('Study saved as: ' + time_of_start)
+    print('Study saved as: ' + study_name + "_" + time_of_start)
 
 def main():
 
     starting_date = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
 
+    study_name = 'score_funct_0'
+
     # Create a study object and start optimisation
-    study = optuna.create_study()
-    study.optimize(objective, n_trials=30)
+    study = optuna.create_study(direction='maximize', 
+                                study_name=study_name, 
+                                # storage='sqlite:///ass2/optimise_results/' + study_name + '/study.db'
+                                )
+    study.optimize(objective, n_trials=10)
 
     # Save the optimisation results
-    save_study(study, time_of_start=f'{starting_date}')
+    save_study(study, study_name=study_name, time_of_start=f'{starting_date}')
 
     report(study)
 
@@ -140,5 +159,13 @@ if __name__ == '__main__':
     path = 'ass2/datasets/feature_0.1_sample.csv'
 
     df = df_maker.make_df(df_path='', clean_df_path='', feature_df_path=path)
+
+    #sample df smaller
+    gss = GroupShuffleSplit(test_size=.60, n_splits=1, random_state = 7).split(df, groups=df['srch_id'])
+    small_set_indx, rest_set = next(gss)
+    small_set = df.iloc[small_set_indx]
+    df = small_set
+
+    #TODO: when score function is static, the target column is added in df and the train test split can be done outside of the objective function
 
     main()
