@@ -15,24 +15,12 @@ def mean_ndcg_score(y_test, y_pred, k):
     ndcg_5 = np.mean(ndcg_score_list)
     return ndcg_5
 
+
 def xgb_ranker(X_train, X_test, y_train, y_test, xgb_params):
-    # gss = GroupShuffleSplit(test_size=.40, n_splits=1, random_state = 7).split(df, groups=df['srch_id'])
-
-    # X_train_inds, X_test_inds = next(gss)
-
-    # train_data= df.iloc[X_train_inds]
-    # X_train = train_data.loc[:, ~train_data.columns.isin(['srch_id','position', 'click_bool', 'booking_bool'])]
-    # y_train = train_data.loc[:, train_data.columns.isin(['position'])]
 
     train_data = pd.concat([X_train, y_train], axis=1)
 
     groups = train_data.groupby('srch_id').size().to_frame('size')['size'].to_numpy()
-
-    # test_data= df.iloc[X_test_inds]
-
-    # #We need to keep the id for later predictions
-    # X_test = test_data.loc[:, ~test_data.columns.isin(['position', 'click_bool', 'booking_bool'])]
-    # y_test = test_data.loc[:, test_data.columns.isin(['srch_id', 'position'])]
 
     # Define model parameters
     model = xgb.XGBRanker(**xgb_params)
@@ -58,6 +46,8 @@ def xgb_ranker(X_train, X_test, y_train, y_test, xgb_params):
 
     # Print the NDCG@5 score
     print('NDCG@5 score on the test data:', ndcg_5)
+
+    return model, predictions, ndcg_5
 
 # Call the XGBoost function
 #xgb_ranker(df)

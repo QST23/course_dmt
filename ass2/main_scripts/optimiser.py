@@ -76,8 +76,13 @@ def objective(trial:optuna.Trial):
     ''' 
     #call a function that trains a model on the training data
     model = xgboost_ranker(train_x, valid_x, train_y, valid_y, xgb_params)'''
+    
+    model = xgboost_ranker(train_x, train_y, xgb_params)
+
+
 
     #TODO: evaluate the model on the validation data
+
     '''predictions = model.predict(valid_x)
 
     #evaluate would than be a function that returns the ndcg score based on the predictions and the validation data
