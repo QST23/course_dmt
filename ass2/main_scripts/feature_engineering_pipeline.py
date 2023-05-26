@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+import normalise
 
 def convert_datetime(df:pd.DataFrame)->pd.DataFrame:
     """
@@ -91,16 +91,109 @@ def drop_date_time(df:pd.DataFrame) -> pd.DataFrame:
 
 
 #rescale all columns to [0,1]
-def rescaler(df : pd.DataFrame):
-    for col in df.columns:
-        # except for the id columns
-        if not (col.endswith('_id') or col == 'season_stay'):
-            df[col] = (df[col] - df[col].min()) / (df[col].max() - df[col].min())
+def rescaler(column:pd.Series, column_name : str, operation : str)->pd.Series:
+    """
+    Rescale all columns to [0,1]
+
+    Parameters
+    ----------
+    column : pd.Series (column of dataframe to be rescaled)
+    column_name : str (name of the column)
+    operation : str (type of operation to be performed on the column)
+
+    Returns
+    -------
+    column : pd.Series (rescaled column)
+    """
+
+    # check all possible operations
+    # the columns with preset ranges should 
+
+
+
+    # for col in df.columns:
+    #     # except for the id columns
+    #     if not (col.endswith('_id') or col == 'season_stay'):
+    #         df[col] = (df[col] - df[col].min()) / (df[col].max() - df[col].min())
     return df
 
 
 def save_df(df:pd.DataFrame, path):
     df.to_csv(path, index=False)
+
+
+def finalise_columns(df:pd.DataFrame)->pd.DataFrame:
+
+    columns_and_operations = {
+        'srch_id' : 'pass',
+        'site_id' : 'small_category',
+        'visitor_location_country_id' : 'medium_category',
+        'prop_country_id' : 'medium_category',
+        'prop_id' : 'big_category',
+        'prop_starrating' : 'set_ranges',
+        'prop_review_score' : 'set_ranges',
+        'prop_brand_bool' : 'binary',
+        'prop_location_score1' : 'numeric',
+        'prop_location_score2' : 'numeric',
+        'prop_log_historical_price' : 'numeric',
+        'position' : 'pass',
+        'price_usd' : 'numeric',
+        'promotion_flag' : 'binary',
+        'srch_destination_id' : 'medium_category',
+        'srch_length_of_stay' : 'integer',
+        'srch_booking_window' : 'integer',
+        'srch_adults_count' : 'integer',
+        'srch_children_count' : 'integer',
+        'srch_room_count' : 'integer',
+        'srch_saturday_night_bool' : 'binary',
+        'srch_query_affinity_score' : 'numeric',
+        'random_bool' : 'binary',
+        'click_bool' : 'pass',
+        'booking_bool' : 'pass',
+        'prop_review_score_is_nan' : 'binary',
+        'srch_query_affinity_score_is_nan' : 'binary',
+        'prop_review_score_is_zero' : 'binary',
+        'prop_starrating_is_zero' : 'binary',
+        'year' : 'set_ranges',
+        'month' : 'set_ranges',
+        'day_of_year' : 'set_ranges',
+        'day_of_week' : 'set_ranges',
+        'hour' : 'set_ranges',
+        'weekend' : 'binary',
+        'is_international_stay' : 'binary',
+        'children_accepted' : 'binary',
+        'mean_day_stay' : 'integer',
+        'season_stay' : 'small_category',
+    }
+
+
+    for col in df.columns:
+        try:
+            operation = columns_and_operations[col]
+        except KeyError:
+            print(f'Column {col} not in columns_and_operations')
+            continue
+    
+        # operations = [
+    #     'pass',
+    #     'small_category',
+    #     'medium_category',
+    #     'big_category',
+    #     'ordinal',
+    #     'binary',
+    #     'numeric',
+    #     'integer',
+    #     'set_ranges'
+    # ]
+
+        if operation == 'numeric':
+            df[col] = normalise.normalise_collumn_with_loaded_or_new_model(df[col], col, verbose=True)
+        elif operation == 'set_ranges':
+            df[col] = rescaler(df[col], col, operation)
+        
+            
+
+
 
 def main(df:pd.DataFrame, path='')->pd.DataFrame:
 
