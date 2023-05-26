@@ -1,3 +1,4 @@
+import sys, os
 import numpy as np
 import pandas as pd
 import normalise
@@ -115,7 +116,7 @@ def rescaler(column:pd.Series, column_name : str, operation : str)->pd.Series:
     #     # except for the id columns
     #     if not (col.endswith('_id') or col == 'season_stay'):
     #         df[col] = (df[col] - df[col].min()) / (df[col].max() - df[col].min())
-    return df
+    return column
 
 
 def save_df(df:pd.DataFrame, path):
@@ -156,6 +157,7 @@ def finalise_columns(df:pd.DataFrame)->pd.DataFrame:
         'prop_starrating_is_zero' : 'binary',
         'year' : 'set_ranges',
         'month' : 'set_ranges',
+        'day' : 'set_ranges',
         'day_of_year' : 'set_ranges',
         'day_of_week' : 'set_ranges',
         'hour' : 'set_ranges',
@@ -165,15 +167,6 @@ def finalise_columns(df:pd.DataFrame)->pd.DataFrame:
         'mean_day_stay' : 'integer',
         'season_stay' : 'small_category',
     }
-
-
-    for col in df.columns:
-        try:
-            operation = columns_and_operations[col]
-        except KeyError:
-            print(f'Column {col} not in columns_and_operations')
-            continue
-    
         # operations = [
     #     'pass',
     #     'small_category',
@@ -186,15 +179,28 @@ def finalise_columns(df:pd.DataFrame)->pd.DataFrame:
     #     'set_ranges'
     # ]
 
+
+    for col_name in df.columns:
+        try:
+            operation = columns_and_operations[col_name]
+        except KeyError:
+            print(f'Column {col_name} not in columns_and_operations')
+            sys.exit()
+    
+
         if operation == 'numeric':
-            df[col] = normalise.normalise_collumn_with_loaded_or_new_model(df[col], col, verbose=True)
+            try:
+                df[col_name] = normalise.normalise_collumn_with_loaded_or_new_model(df[col_name], col_name=col_name, verbose=True)
+            #catch if user interupts
+            except KeyboardInterrupt:
+                #quit program
+                sys.exit()
         elif operation == 'set_ranges':
-            df[col] = rescaler(df[col], col, operation)
+            df[col_name] = rescaler(df[col_name], col_name, operation)
+    
+    return df
         
             
-
-
-
 def main(df:pd.DataFrame, path='')->pd.DataFrame:
 
     df = convert_datetime(df)
@@ -205,7 +211,7 @@ def main(df:pd.DataFrame, path='')->pd.DataFrame:
     df = mean_day_stay(df)
     df = season_stay(df)
     df = drop_date_time(df)
-    df = rescaler(df)
+    df = finalise_columns(df)
 
     if path:
         save_df(df, path)
@@ -216,10 +222,28 @@ def main(df:pd.DataFrame, path='')->pd.DataFrame:
 if __name__ == "__main__":
 
     # create a dataframe
-    df = pd.read_csv('/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/data_cleaned.csv')
+    # df = pd.read_csv('/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/data_cleaned.csv')
+    df = pd.read_csv('ass2/datasets/feature_0.1_sample.csv')
 
+    #sample df
+    df = df.sample(n=5000, random_state=1)
+
+    origin = df.copy()
+
+    print(df.shape)
+
+    df = finalise_columns(df)
+
+    features_to_normalise = [
+        'prop_location_score1',
+        'prop_location_score2',
+        'prop_log_historical_price',
+        'srch_query_affinity_score',
+        'price_usd',
+    ]
+
+    print(df[features_to_normalise].describe())
     # run the pipeline
     #df = main(df, path='datasets/feature_engineered_data.csv')
-    df = main(df, path='/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_engineered_data.csv')
+    # df = main(df, path='/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_engineered_data.csv')
 
-    df
