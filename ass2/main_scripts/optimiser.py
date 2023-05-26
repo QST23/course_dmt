@@ -65,7 +65,7 @@ def objective(trial:optuna.Trial):
         'booking_weight' : trial.suggest_float('booking_weight', 0.1, 1.0),
         'click_weight' : trial.suggest_float('click_weight', 0.1, 1.0),
         'position_weight' : trial.suggest_float('position_weight', 0.1, 1.0),
-        'position_scale' : trial.suggest_int('position_scale', 0, 5)
+        'position_scale' : trial.suggest_int('position_scale', 0.1, 5)
     }
 
     # set the parameters for the xgboost model (semi arbitrary and not optimised)
