@@ -1,6 +1,6 @@
 import numpy as np
 import polars as pl
-
+import sklearn.preprocessing
 
 #delete column if type is string
 def delete_string_columns(df):
@@ -26,6 +26,7 @@ def rescaler(df):
             (pl.col(col) - pl.col(col).min()) / (pl.col(col).max() - pl.col(col).min())
         )
     return df
+
 
 def save_df(df:pl.DataFrame, path):
     df.write_csv(path)
