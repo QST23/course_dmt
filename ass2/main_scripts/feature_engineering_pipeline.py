@@ -12,6 +12,8 @@ def convert_datetime(df:pd.DataFrame)->pd.DataFrame:
 
     df['month'] = df['date_time'].dt.month
 
+    df['day_of_year'] = df['date_time'].dt.dayofyear
+
     df['day_of_week'] = df['date_time'].dt.dayofweek
 
     df['hour'] = df['date_time'].dt.hour
@@ -59,10 +61,6 @@ def mean_day_stay(df:pd.DataFrame) -> pd.DataFrame:
     Make column with mean day of stay (out of 365 days)
     """
     df['mean_date_stay'] = df['date_time'] + pd.to_timedelta(df['srch_booking_window'], unit='d') + (pd.to_timedelta(df['srch_length_of_stay'], unit='d')/2)
-    #skip hours and minutes
-    #df['mean_date_stay'] = df['mean_date_stay'].dt.date
-    #df['mean_date_stay'] = pd.to_datetime(df['mean_date_stay'])
-    #convert to day of year
     df['mean_day_stay'] = df['mean_date_stay'].dt.dayofyear
 
     return df
@@ -125,10 +123,10 @@ def main(df:pd.DataFrame, path='')->pd.DataFrame:
 if __name__ == "__main__":
 
     # create a dataframe
-    df = pd.read_csv('datasets/data_cleaned.csv')
+    df = pd.read_csv('/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/data_cleaned.csv')
 
     # run the pipeline
-    df = main(df, path='datasets/feature_engineered_data.csv')
-    #df = main(df, path='/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_engineered_data.csv')
+    #df = main(df, path='datasets/feature_engineered_data.csv')
+    df = main(df, path='/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_engineered_data.csv')
 
     df
