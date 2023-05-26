@@ -2,6 +2,7 @@ import sys, os
 import numpy as np
 import pandas as pd
 import normalise
+from sklearn.preprocessing import MinMaxScaler
 
 def convert_datetime(df:pd.DataFrame)->pd.DataFrame:
     """
@@ -90,6 +91,8 @@ def drop_date_time(df:pd.DataFrame) -> pd.DataFrame:
     
     return df
 
+def min_max_rescale(column, min, max):
+    return (column - min) / (max - min)
 
 #rescale all columns to [0,1]
 def rescaler(column:pd.Series, column_name : str, operation : str)->pd.Series:
@@ -106,11 +109,35 @@ def rescaler(column:pd.Series, column_name : str, operation : str)->pd.Series:
     -------
     column : pd.Series (rescaled column)
     """
+    if operation == 'set_ranges':
+        if column_name == 'prop_starrating':
+                column = column / 5
+        if column_name == 'prop_review_score':
+            column = column / 5
+        if column_name == 'day_of_year':
+            column = column / 365
+        if column_name == 'day_of_week':
+            column = column / 7
+        if column_name == 'year':
+            column = column / 2
+        if column_name == 'month':
+            column = column / 12
+        if column_name == 'hour':
+            column = column / 24
 
-    # check all possible operations
-    # the columns with preset ranges should 
-
-
+    elif operation == 'integer':
+        if column_name == 'srch_length_of_stay':
+            min_max_rescale(column, min=0, max=9)
+        if column_name == 'srch_booking_window':
+            min_max_rescale(column, min=0, max=9)
+        if column_name == 'srch_children_count':
+            min_max_rescale(column, min=0, max=9)
+        if column_name == 'srch_adults_count':
+            min_max_rescale(column, min=0, max=9)
+        if column_name == 'srch_room_count':
+            min_max_rescale(column, min=0, max=9)
+        elif column_name == 'mean_day_stay':
+            min_max_rescale(column, min=0, max=9)
 
     # for col in df.columns:
     #     # except for the id columns
@@ -196,11 +223,12 @@ def finalise_columns(df:pd.DataFrame)->pd.DataFrame:
                 #quit program
                 sys.exit()
         elif operation == 'set_ranges':
-            df[col_name] = rescaler(df[col_name], col_name, operation)
-    
-    return df
-        
-            
+            df[col] = rescaler(df[col], col, operation)
+        elif operation == 'integer':
+            df
+
+
+
 def main(df:pd.DataFrame, path='')->pd.DataFrame:
 
     df = convert_datetime(df)
