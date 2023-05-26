@@ -124,20 +124,20 @@ def rescaler(column:pd.Series, column_name : str, operation : str)->pd.Series:
             column = column / 12
         if column_name == 'hour':
             column = column / 24
+        if column_name == 'mean_day_stay':
+            column = column / 365
 
     elif operation == 'integer':
         if column_name == 'srch_length_of_stay':
-            min_max_rescale(column, min=0, max=9)
+            min_max_rescale(column, min=0, max=57)
         if column_name == 'srch_booking_window':
-            min_max_rescale(column, min=0, max=9)
+            min_max_rescale(column, min=0, max=492)
         if column_name == 'srch_children_count':
             min_max_rescale(column, min=0, max=9)
         if column_name == 'srch_adults_count':
-            min_max_rescale(column, min=0, max=9)
+            min_max_rescale(column, min=1, max=9)
         if column_name == 'srch_room_count':
-            min_max_rescale(column, min=0, max=9)
-        elif column_name == 'mean_day_stay':
-            min_max_rescale(column, min=0, max=9)
+            min_max_rescale(column, min=1, max=8)
 
     # for col in df.columns:
     #     # except for the id columns
@@ -191,7 +191,7 @@ def finalise_columns(df:pd.DataFrame)->pd.DataFrame:
         'weekend' : 'binary',
         'is_international_stay' : 'binary',
         'children_accepted' : 'binary',
-        'mean_day_stay' : 'integer',
+        'mean_day_stay' : 'set_ranges',
         'season_stay' : 'small_category',
     }
         # operations = [
@@ -222,11 +222,7 @@ def finalise_columns(df:pd.DataFrame)->pd.DataFrame:
             except KeyboardInterrupt:
                 #quit program
                 sys.exit()
-        elif operation == 'set_ranges':
-            df[col] = rescaler(df[col], col, operation)
-        elif operation == 'integer':
-            df
-
+        else: df[col_name] = rescaler(df[col_name], col_name, operation)
 
 
 def main(df:pd.DataFrame, path='')->pd.DataFrame:
