@@ -128,8 +128,32 @@ def fitter_to_model_and_params(best_fit:Fitter, method:str='sumsquare_error'):
     
     return stat_model, params
 
+def save_model_and_params(model_dict, column_name, path_to_save=None):
+    
+    file_saved = False
 
-def fit_statistical_models(collumn_to_normalise, collumn_name):
+    if path_to_save:
+        try:
+            with open(f'{path_to_save}model_dict_{column_name}.pkl', 'wb') as f:
+                pickle.dump(model_dict, f)
+                file_saved = True
+                print(f'File saved in {path_to_save}model_dict_{column_name}')
+        except FileNotFoundError:
+            pass
+
+    if not file_saved:
+        #save the dictionary in a pickle file
+        try:
+            with open(f'statistical_distributions/model_dict_{column_name}.pkl', 'wb') as f:
+                pickle.dump(model_dict, f)
+                print(f'File saved in statistical_distributions/model_dict_{column_name}')
+        except FileNotFoundError:
+            with open(f'ass2/statistical_distributions/model_dict_{column_name}.pkl', 'wb') as f:
+                pickle.dump(model_dict, f)
+                print(f'File saved in ass2/statistical_distributions/model_dict_{column_name}')
+
+
+def fit_statistical_models(collumn_to_normalise, collumn_name, path_to_save=None):
     fitter = Fitter(collumn_to_normalise)
     
     fitter.fit()
@@ -140,97 +164,86 @@ def fit_statistical_models(collumn_to_normalise, collumn_name):
     #store the model and its parameters in a dictionary
     model_dict = {'model': stat_model, 'params': params}
 
-    #save the dictionary in a pickle file
-    try:
-        with open(f'stastical_distributions/model_dict_{collumn_name}.pkl', 'wb') as f:
-            pickle.dump(model_dict, f)
-    except FileNotFoundError:
-        with open(f'ass1/stastical_distributions/model_dict_{collumn_name}.pkl', 'wb') as f:
-            pickle.dump(model_dict, f)
     return model_dict
 
 
-def normalise_collumn(df:pd.DataFrame, collumn_name, only_collumn:bool=False, verbose:bool=False):
-    
-    col_to_normalise = df[collumn_name]
+def create_and_save_statistical_model(col_to_normalise:pd.Series, collumn_name:str, path_to_save:str=None, verbose:bool=False):
     
     #check if values are missing and skip them for the fit
-    if df[collumn_name].isna().sum() > 0:
-        print(f'!! {df[collumn_name].isna().sum()} values are missing. They will be skipped for the fit.') if verbose else None
-        col_to_normalise = df[collumn_name].dropna()
+    if col_to_normalise.isna().sum() > 0:
+        print(f'!! {col_to_normalise.isna().sum()} values are missing. They will be skipped for the fit.') if verbose else None
+        col_to_normalise = col_to_normalise.dropna()
 
-    model_dict = fit_statistical_models(col_to_normalise, collumn_name)
-    stat_model = model_dict['model']
-    params = model_dict['params']
+    model_dict = fit_statistical_models(col_to_normalise, collumn_name, path_to_save=path_to_save)
+    
+    #save the model and its parameters
+    save_model_and_params(model_dict, column_name=collumn_name, path_to_save=path_to_save)
+    
+    return model_dict
 
-    #normalise the collumn
-    normalised = stat_model.cdf(df[collumn_name], **params)
-    df[collumn_name] = normalised
 
-    return normalised if only_collumn else df
-
-def apply_statistical_model(df:pd.DataFrame, col_to_norm:str, model_name:str, only_collumn:bool=False):
+def load_norm_model(model_name:str)->dict:
     #load the model and its parameters from the pickle file
     try:
-        with open(f'ass1/stastical_distributions/model_dict_{model_name}.pkl', 'rb') as f:
+        with open(f'ass2/statistical_distributions/model_dict_{model_name}.pkl', 'rb') as f:
             model_dict = pickle.load(f)
     except FileNotFoundError:
-        with open(f'stastical_distributions/model_dict_{model_name}.pkl', 'rb') as f:
+        with open(f'statistical_distributions/model_dict_{model_name}.pkl', 'rb') as f:
             model_dict = pickle.load(f)
+    return model_dict
+
+
+def apply_statistical_model(col_to_normalise:pd.Series, model_dict:dict):
 
     stat_model = model_dict['model']
     params = model_dict['params']
 
     #apply the model to the collumn
-    normalised = stat_model.cdf(df[col_to_norm], **params)
+    normalised = stat_model.cdf(col_to_normalise, **params)
 
-    if only_collumn:
-        return normalised  
-    else:
-        df[col_to_norm] = normalised
-        return df
+    return normalised
 
 
-def normalise_collumn_with_loaded_or_new_model(df, col, verbose:bool=False):
-    #check if collumn is related to another model (prev, target, next)
-    if 'prev' in col:
-        use_model_name = col.split('_prev')[0]
-    elif 'target' in col:
-        use_model_name = col.split('_target')[0]
-    else:
-        use_model_name = col
+def normalise_collumn_with_loaded_or_new_model(col_to_normalise, col_name:str, path_for_model=None, verbose:bool=False):
+
+    use_model_name = col_name
+
+    if not path_for_model:
+        path_for_model = 'ass2/statistical_distributions/'
 
     #continue if there is not allready a file with the normalise model in the folder
-    if (not os.path.isfile(f'ass1/stastical_distributions/model_dict_{use_model_name}.pkl') and not os.path.isfile(f'stastical_distributions/model_dict_{col}.pkl')):
-        print('-'*100,f'\nfit a model for {col} and transform the collumn ({use_model_name} not found)\n', '-'*100) if verbose else None
+    if (not os.path.isfile(f'ass2/statistical_distributions/model_dict_{use_model_name}.pkl') and not os.path.isfile(f'statistical_distributions/model_dict_{col_name}.pkl')):
+        print('-'*100,f'\nfit a model for {col_name} and transform the collumn ({use_model_name} not found)\n', '-'*100) if verbose else None
         #fit a normalisation model and apply it to the collumn
-        normalised_col = normalise_collumn(df, collumn_name=use_model_name, only_collumn=True, verbose=verbose)
+        model_dict = create_and_save_statistical_model(col_to_normalise, collumn_name=use_model_name, path_to_save=path_for_model, verbose=verbose)
     else:
-        print('-'*50,f'\nfound model for {col} ({use_model_name})') if verbose else None
-        #transform the collumn with the allready existing model
-        normalised_col = apply_statistical_model(df, col_to_norm=col, model_name=use_model_name, only_collumn=True)
+        print('-'*50,f'\nfound model for {col_name} ({use_model_name})') if verbose else None
+        model_dict = load_norm_model(use_model_name)
+        
+    #transform the collumn with the statistical model
+    normalised_col = apply_statistical_model(col_to_normalise, model_dict=model_dict)
 
     return normalised_col
 
 
 def normalise_columns_from_list(df:pd.DataFrame, collumns_list, verbose:bool=False):
     #loop over collumns 
-    for col in collumns_list:
+    for col_name in collumns_list:
         #normalise the collumn
         try:
-            df[col] = normalise_collumn_with_loaded_or_new_model(df, col, verbose)
+            df[col_name] = normalise_collumn_with_loaded_or_new_model(df[col_name], col_name, verbose)
         #catch if user interupts
         except KeyboardInterrupt:
             #quit program
             sys.exit()
         except Exception as e:
-            print(f'could not normalise {col}')
+            print(f'could not normalise {col_name}')
             print(e)
     return df
 
 
 if __name__ == '__main__':  
-    # print(os.path.isfile(f'ass1/stastical_distributions/model_dict_mood.pkl'))
+    # print(os.path.isfile(f'ass1/statistical_distributions/model_dict_mood.pkl'))
 
     df = pd.read_csv('ass2/Datasets/feature_0.1_sample.csv')
 
@@ -241,8 +254,8 @@ if __name__ == '__main__':
        'appCat.office', 'appCat.other', 'appCat.social', 'appCat.travel',
        'appCat.unknown', 'appCat.weather', 'appCat.utilities','mood_relative_change']
 
-    #find the number of files in "ass1/stastical_distributions/"
-    files = os.listdir('ass1/stastical_distributions/')
+    #find the number of files in "ass1/statistical_distributions/"
+    files = os.listdir('ass1/statistical_distributions/')
     num_of_files = len([file for file in files if file.endswith('.pkl')])
     print(num_of_files)
 
