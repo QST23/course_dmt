@@ -67,7 +67,7 @@ def objective(trial:optuna.Trial):
         'booking_weight' : trial.suggest_float('booking_weight', 0.1, 1.0),
         'click_weight' : trial.suggest_float('click_weight', 0.1, 1.0),
         'position_weight' : trial.suggest_float('position_weight', 0.1, 1.0),
-        'position_scale' : trial.suggest_int('top_n_positions', 0.1, 5, log=True)
+        'position_scale' : trial.suggest_float('position_scale', 0.1, 5, log=True)
     }
 
     # set the parameters for the xgboost model (semi arbitrary and not optimised)
@@ -130,9 +130,11 @@ def save_study(study:optuna.Study, full_study_name:str):
 
     #save trial results
     trials_df = study.trials_dataframe()
-    trials_df.to_csv(trial_res_path)
+    trials_df.to_csv(trial_res_path, index=False)
 
-    print('Study saved as: ' + full_study_name)
+    print('\n\nStudy saved as: ' + full_study_name)
+    start_time = full_study_name.split('_2023')[-1]
+    print('Study version: 2023' + start_time + '\n')
 
 
 def load_study(study_name:str, time_of_start:str, get_trials_df:bool=False)->tuple:
@@ -158,14 +160,16 @@ def make_study(new_study:bool=True, study_name:str='', starting_date:str=''):
         full_study_name = study_name + "_" + starting_date
 
         study, trials_df = load_study(study_name, starting_date, get_trials_df=False)
+        print('\n'*2+ '-'*50)
         print('Study loaded: ' + full_study_name)
         print('Currently:')
         report(study)
     else:
-        starting_date = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
+        starting_date = str(time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime()))
         study_name = STUDY_NAME
 
         full_study_name = study_name + "_" + starting_date
+        print('\n'*2+ '-'*50)
         print('Starting new study: ' + full_study_name)
 
         # Create a study object and start optimisation
@@ -186,15 +190,11 @@ def main(load_study:bool=False, study_name:str='', starting_date:str=''):
         study.optimize(objective, n_trials=N_TRIALS)
     except KeyboardInterrupt:
         print('Interrupted by user')
-
-        # Save the optimisation results
-        save_study(study, study_name=full_study_name)
-
     except Exception as e:
         print('Error: ' + str(e))
 
-        # Save the optimisation results
-        save_study(study, study_name=study_name, time_of_start=f'{starting_date}')
+    # Save the optimisation results
+    save_study(study, full_study_name=full_study_name)
     
     report(study)
 
@@ -230,14 +230,15 @@ if __name__ == '__main__':
     used to load the study and continue optimising the existing study
     '''
 
+    
 
-    STUDY_NAME = 'test_score_function'
-    STARTING_DATE = '2023-05-25_16-04-58'
+    STUDY_NAME = 'testtsetsetse'
+    STUDY_VERSION = '2023-05-27_14-25-05' #date of start of study
 
     N_TRIALS = 3
-    TRAINING_FRACTION = 0.01
+    TRAINING_FRACTION = 0.1
     VERBOSE = True
-    LOAD_STUDY = False
+    LOAD_STUDY = True
 
     path = 'ass2/datasets/feature_engineered_data.csv'
     # path = 'ass2/datasets/feature_0.1_sample.csv'
@@ -254,5 +255,5 @@ if __name__ == '__main__':
 
     main(load_study=LOAD_STUDY, 
         study_name=STUDY_NAME, 
-        starting_date= STARTING_DATE
+        starting_date= STUDY_VERSION
         )
