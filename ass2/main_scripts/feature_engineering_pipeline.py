@@ -176,6 +176,7 @@ def finalise_columns(df:pd.DataFrame)->pd.DataFrame:
         'srch_room_count' : 'integer',
         'srch_saturday_night_bool' : 'binary',
         'srch_query_affinity_score' : 'numeric',
+        'orig_destination_distance' : 'numeric',
         'random_bool' : 'binary',
         'click_bool' : 'pass',
         'booking_bool' : 'pass',
@@ -223,19 +224,25 @@ def finalise_columns(df:pd.DataFrame)->pd.DataFrame:
             except KeyboardInterrupt:
                 #quit programç
                 sys.exit()
-        else: df[col_name] = rescaler(df[col_name], col_name, operation)
+        elif operation == 'integer' or operation == 'set_ranges':
+            try: df[col_name] = rescaler(df[col_name], col_name, operation)
+            except KeyboardInterrupt:
+                sys.exit()
+        else: 
+            print(col_name)
 
+    return df
 
 def main(df:pd.DataFrame, path='')->pd.DataFrame:
 
-    # df = convert_datetime(df)
-    # df = Boolean_weekend(df)
-    # df = international_stay(df)
-    # #df = price_per_night(df)
-    # df = accept_children(df)
-    # df = mean_day_stay(df)
-    # df = season_stay(df)
-    # df = drop_date_time(df)
+    df = convert_datetime(df)
+    df = Boolean_weekend(df)
+    df = international_stay(df)
+    #df = price_per_night(df)
+    df = accept_children(df)
+    df = mean_day_stay(df)
+    df = season_stay(df)
+    df = drop_date_time(df)
     df = finalise_columns(df)
 
     if path:
@@ -246,7 +253,7 @@ def main(df:pd.DataFrame, path='')->pd.DataFrame:
 
 if __name__ == "__main__":
     # create a dataframe
-    df = pd.read_csv('/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_engineered_data.csv')
+    df = pd.read_csv('/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/data_cleaned.csv')
 
     #sample df
     #df = df.sample(n=5000, random_state=1)
@@ -263,9 +270,9 @@ if __name__ == "__main__":
         'prop_log_historical_price',
         'srch_query_affinity_score',
         'price_usd',
+        'orig_destination_distance'
     ]
 
     # run the pipeline
     #df = main(df, path='datasets/final_train_feat_engin_data.csv')
-    df = main(df, path='/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/final_train_feat_engin_data.csv')
-
+    df = main(df, path='/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_engineered_data1.csv')
