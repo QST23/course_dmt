@@ -268,6 +268,6 @@ if __name__ == "__main__":
 
     print(df[features_to_normalise].describe())
     # run the pipeline
-    #df = main(df, path='datasets/feature_engineered_data.csv')
+    df = main(df, path='datasets/feature_engineered_data.csv')
     # df = main(df, path='/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_engineered_data.csv')
 
