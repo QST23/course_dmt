@@ -174,7 +174,7 @@ def create_and_save_statistical_model(col_to_normalise:pd.Series, collumn_name:s
         print(f'!! {col_to_normalise.isna().sum()} values are missing. They will be skipped for the fit.') if verbose else None
         col_to_normalise = col_to_normalise.dropna()
 
-    model_dict = fit_statistical_models(col_to_normalise, collumn_name, path_to_save=path_to_save)
+    model_dict = fit_statistical_models(col_to_normalise, collumn_name)
     
     #save the model and its parameters
     save_model_and_params(model_dict, column_name=collumn_name, path_to_save=path_to_save)
