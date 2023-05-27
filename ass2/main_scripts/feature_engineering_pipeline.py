@@ -42,7 +42,8 @@ def price_per_night(df:pd.DataFrame)->pd.DataFrame:
     """
     Make column with Boolean value for whether the srch_length_of_stay is 1 and booking_bool is True
     """
-    df['price_per_night'] = np.where((df['srch_length_of_stay'] == 1) & (df['booking_bool'] == 1), df['price_usd'], "NaN")
+    #when srch_length_of_stay is 1, make a new column price_per_night with dividing price_usd by srch_length_of_stay
+    df['price_per_night'] = np.where(df['srch_length_of_stay'] == 1, df['price_usd'], df['price_usd']/df['srch_length_of_stay'])
 
     return df
 
@@ -220,21 +221,21 @@ def finalise_columns(df:pd.DataFrame)->pd.DataFrame:
                 df[col_name] = normalise.normalise_collumn_with_loaded_or_new_model(df[col_name], col_name=col_name, verbose=True)
             #catch if user interupts
             except KeyboardInterrupt:
-                #quit program
+                #quit programç
                 sys.exit()
         else: df[col_name] = rescaler(df[col_name], col_name, operation)
 
 
 def main(df:pd.DataFrame, path='')->pd.DataFrame:
 
-    df = convert_datetime(df)
-    df = Boolean_weekend(df)
-    df = international_stay(df)
-    #df = price_per_night(df)
-    df = accept_children(df)
-    df = mean_day_stay(df)
-    df = season_stay(df)
-    df = drop_date_time(df)
+    # df = convert_datetime(df)
+    # df = Boolean_weekend(df)
+    # df = international_stay(df)
+    # #df = price_per_night(df)
+    # df = accept_children(df)
+    # df = mean_day_stay(df)
+    # df = season_stay(df)
+    # df = drop_date_time(df)
     df = finalise_columns(df)
 
     if path:
@@ -244,19 +245,17 @@ def main(df:pd.DataFrame, path='')->pd.DataFrame:
 
 
 if __name__ == "__main__":
-
     # create a dataframe
-    df = pd.read_csv('/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_0.1_sample.csv')
-    #df = pd.read_csv('ass2/datasets/feature_0.1_sample.csv')
+    df = pd.read_csv('/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_engineered_data.csv')
 
     #sample df
-    df = df.sample(n=5000, random_state=1)
+    #df = df.sample(n=5000, random_state=1)
 
     origin = df.copy()
 
-    print(df.shape)
+    #print(df.shape)
 
-    df = finalise_columns(df)
+    #df = finalise_columns(df)
 
     features_to_normalise = [
         'prop_location_score1',
@@ -266,8 +265,7 @@ if __name__ == "__main__":
         'price_usd',
     ]
 
-    print(df[features_to_normalise].describe())
     # run the pipeline
-    df = main(df, path='datasets/feature_engineered_data.csv')
-    # df = main(df, path='/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_engineered_data.csv')
+    #df = main(df, path='datasets/final_train_feat_engin_data.csv')
+    df = main(df, path='/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/final_train_feat_engin_data.csv')
 
