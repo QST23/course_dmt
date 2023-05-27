@@ -53,7 +53,7 @@ def create_target_column(df:pd.DataFrame, params:dict)->pd.Series:
         params['booking_weight'] * df['booking_bool'] +
         params['click_weight'] * df['click_bool'] +
         params['position_weight'] * (1 / df['position']) +
-        params['no_interaction_weight'] * (1 - df['booking_bool'] - df['click_bool'])
+        params['position_weight'] * (params['position_scale'] / df['position']).where(df['random_bool'] == 0, 0) 
     )
 
     target_colum = score_function.copy()
@@ -68,8 +68,7 @@ def objective(trial:optuna.Trial):
         'booking_weight' : trial.suggest_float('booking_weight', 0.1, 1.0),
         'click_weight' : trial.suggest_float('click_weight', 0.1, 1.0),
         'position_weight' : trial.suggest_float('position_weight', 0.1, 1.0),
-        'no_interaction_weight' : trial.suggest_float('no_interaction_weight', 0.1, 1.0),
-        'top_n_positions' : trial.suggest_int('top_n_positions', 5, 20)
+        'position_scale' : trial.suggest_int('top_n_positions', 0.1, 5)
     }
 
     # set the parameters for the xgboost model (semi arbitrary and not optimised)
