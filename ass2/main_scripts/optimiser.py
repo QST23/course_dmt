@@ -18,12 +18,12 @@ EXCLUDE_FROM_TRAINING = ['srch_id']
 EXCLUDE_FROM_TESTING = []
 
 
-def train_test(df:pd.DataFrame, target_column, test_size=0.2, random_state=None)->tuple:
+def train_test(df:pd.DataFrame, target_column, test_size=0.2, random_state=7)->tuple:
 
     #add target column to df
     df.loc[:, 'target'] = target_column
 
-    gss = GroupShuffleSplit(test_size=test_size, n_splits=1, random_state = 7).split(df, groups=df['srch_id'])
+    gss = GroupShuffleSplit(test_size=test_size, n_splits=1, random_state = random_state).split(df, groups=df['srch_id'])
 
     X_train_inds, X_test_inds = next(gss)
 
@@ -67,7 +67,7 @@ def objective(trial:optuna.Trial):
         'booking_weight' : trial.suggest_float('booking_weight', 0.1, 1.0),
         'click_weight' : trial.suggest_float('click_weight', 0.1, 1.0),
         'position_weight' : trial.suggest_float('position_weight', 0.1, 1.0),
-        'position_scale' : trial.suggest_int('top_n_positions', 0.1, 5)
+        'position_scale' : trial.suggest_int('top_n_positions', 0.1, 5, log=True)
     }
 
     # set the parameters for the xgboost model (semi arbitrary and not optimised)
@@ -110,11 +110,15 @@ def report(study: optuna.Study):
 
     return
 
-def save_study(study:optuna.Study, study_name:str, time_of_start:str):
+def save_study(study:optuna.Study, full_study_name:str):
     
     #make repository for both trial results and study
-    path = "ass2/optimise_results/" + study_name + "_" + time_of_start + "/"
-    os.mkdir(path)
+    path = "ass2/optimise_results/" + full_study_name + "/"
+
+    if not os.path.exists(path): 
+        os.mkdir(path)
+    else:
+        print(f"\nDirectory '{path}' already exists")
 
     #make paths
     trial_res_path = path + 'trial_results.csv'
@@ -128,7 +132,7 @@ def save_study(study:optuna.Study, study_name:str, time_of_start:str):
     trials_df = study.trials_dataframe()
     trials_df.to_csv(trial_res_path)
 
-    print('Study saved as: ' + study_name + "_" + time_of_start)
+    print('Study saved as: ' + full_study_name)
 
 
 def load_study(study_name:str, time_of_start:str, get_trials_df:bool=False)->tuple:
@@ -149,16 +153,20 @@ def load_study(study_name:str, time_of_start:str, get_trials_df:bool=False)->tup
 
 def make_study(new_study:bool=True, study_name:str='', starting_date:str=''):
 
-    if new_study:
+    if not new_study:
+
+        full_study_name = study_name + "_" + starting_date
+
         study, trials_df = load_study(study_name, starting_date, get_trials_df=False)
-        print('Study loaded: ' + study_name + "_" + starting_date)
+        print('Study loaded: ' + full_study_name)
         print('Currently:')
         report(study)
     else:
         starting_date = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
         study_name = STUDY_NAME
 
-        print('Starting new study: ' + study_name + "_" + starting_date)
+        full_study_name = study_name + "_" + starting_date
+        print('Starting new study: ' + full_study_name)
 
         # Create a study object and start optimisation
         study = optuna.create_study(direction='maximize', 
@@ -166,20 +174,27 @@ def make_study(new_study:bool=True, study_name:str='', starting_date:str=''):
                                 # storage='sqlite:///ass2/optimise_results/' + study_name + '/study.db'
                                 )
     
-    return study
+    return study, full_study_name
 
 def main(load_study:bool=False, study_name:str='', starting_date:str=''):
 
-    study = make_study(load_study, study_name, starting_date)
+    new_study = not load_study
+
+    study, full_study_name = make_study(new_study, study_name, starting_date)
         
     try:       
         study.optimize(objective, n_trials=N_TRIALS)
     except KeyboardInterrupt:
         print('Interrupted by user')
-        pass
 
-    # Save the optimisation results
-    save_study(study, study_name=study_name, time_of_start=f'{starting_date}')
+        # Save the optimisation results
+        save_study(study, study_name=full_study_name)
+
+    except Exception as e:
+        print('Error: ' + str(e))
+
+        # Save the optimisation results
+        save_study(study, study_name=study_name, time_of_start=f'{starting_date}')
     
     report(study)
 
@@ -216,9 +231,11 @@ if __name__ == '__main__':
     '''
 
 
-    STUDY_NAME = 'running_score_function'
-    N_TRIALS = 100
-    TRAINING_FRACTION = 0.1
+    STUDY_NAME = 'test_score_function'
+    STARTING_DATE = '2023-05-25_16-04-58'
+
+    N_TRIALS = 3
+    TRAINING_FRACTION = 0.01
     VERBOSE = True
     LOAD_STUDY = False
 
@@ -236,6 +253,6 @@ if __name__ == '__main__':
     #TODO: when score function is static, the target column is added in df and the train test split can be done outside of the objective function
 
     main(load_study=LOAD_STUDY, 
-         study_name=STUDY_NAME, 
-         starting_date='2023-05-25_16-04-58' 
-         )
+        study_name=STUDY_NAME, 
+        starting_date= STARTING_DATE
+        )
