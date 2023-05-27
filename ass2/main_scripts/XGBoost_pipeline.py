@@ -45,11 +45,10 @@ def xgb_ranker(X_train, X_test, y_train, y_test, groups, xgb_params, ndcg_k:int=
 
     # Compute NDCG@5 score by comparing the predicted scores with the true positions
     #TODO: k becomes a parameter to be optimised
-    ndcg_score = mean_ndcg_score(y_test, y_pred, k = 5)
+    ndcg_score = mean_ndcg_score(y_test, y_pred, k = ndcg_k)
 
     # Print the NDCG@5 score
-    #print(f'NDCG@{ndcg_k} score on the test data:', round(ndcg_score, 2)) if verbose else None
-    print(f'NDCG@ score on the test data:', round(ndcg_score, 2)) if verbose else None
+    print(f'NDCG@{ndcg_k} score on the test data:', round(ndcg_score, 2)) if verbose else None
 
     return model, predictions, ndcg_score
 
