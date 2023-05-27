@@ -218,7 +218,7 @@ if __name__ == '__main__':
     '''
 
 
-    STUDY_NAME = 'tot_score_funct100'
+    STUDY_NAME = 'running_score_function'
     N_TRIALS = 100
     TRAINING_FRACTION = 0.1
     VERBOSE = True
