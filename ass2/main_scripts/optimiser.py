@@ -52,7 +52,6 @@ def create_target_column(df:pd.DataFrame, params:dict)->pd.Series:
     score_function = (
         params['booking_weight'] * df['booking_bool'] +
         params['click_weight'] * df['click_bool'] +
-        params['position_weight'] * (1 / df['position']) +
         params['position_weight'] * (params['position_scale'] / df['position']).where(df['random_bool'] == 0, 0) 
     )
 
