@@ -248,14 +248,10 @@ if __name__ == '__main__':
     df = pd.read_csv('ass2/Datasets/feature_0.1_sample.csv')
 
 
-    to_normalise = ['mood', 'circumplex.arousal', 'circumplex.valence', 'activity',
-       'screen', 'appCat.builtin', 'appCat.communication',
-       'appCat.entertainment', 'appCat.finance', 'appCat.game',
-       'appCat.office', 'appCat.other', 'appCat.social', 'appCat.travel',
-       'appCat.unknown', 'appCat.weather', 'appCat.utilities','mood_relative_change']
+    to_normalise = ['prop_location_score1', 'prop_location_score2', 'prop_log_historical_price','price_usd', 'srch_query_affinity_score']
 
     #find the number of files in "ass1/statistical_distributions/"
-    files = os.listdir('ass1/statistical_distributions/')
+    files = os.listdir('ass2/statistical_distributions/')
     num_of_files = len([file for file in files if file.endswith('.pkl')])
     print(num_of_files)
 

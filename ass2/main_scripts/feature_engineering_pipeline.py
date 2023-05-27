@@ -246,8 +246,8 @@ def main(df:pd.DataFrame, path='')->pd.DataFrame:
 if __name__ == "__main__":
 
     # create a dataframe
-    # df = pd.read_csv('/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/data_cleaned.csv')
-    df = pd.read_csv('ass2/datasets/feature_0.1_sample.csv')
+    df = pd.read_csv('/Users/myrtekuipers/Documents/AI for Health/P5/Data Mining Techniques/course_dmt/ass2/datasets/feature_0.1_sample.csv')
+    #df = pd.read_csv('ass2/datasets/feature_0.1_sample.csv')
 
     #sample df
     df = df.sample(n=5000, random_state=1)
