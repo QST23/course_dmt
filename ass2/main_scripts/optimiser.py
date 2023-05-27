@@ -34,9 +34,6 @@ def train_test(df:pd.DataFrame, target_column, test_size=0.2, random_state=7)->t
     #create groups
     groups = train_data.groupby('srch_id').size().to_frame('size')['size'].to_numpy()
 
-    print(groups)
-
-
     #split target column from x_train and x_test
     X_train = train_data.drop(EXCLUDE_FROM_ALL + EXCLUDE_FROM_TRAINING, axis=1)
     X_test = test_data.drop(EXCLUDE_FROM_ALL + EXCLUDE_FROM_TESTING, axis=1)
@@ -60,7 +57,36 @@ def create_target_column(df:pd.DataFrame, params:dict)->pd.Series:
     # return the score function values 
     return target_colum
 
+def break_maker(duration):
+    print(f"Taking a break for {duration // 60} minutes...")
+    time.sleep(duration)
+    print("Break over. Resuming task.")
+
+
+def check_and_handle_breaks(start_time, last_break_time):
+    elapsed_time = time.time() - start_time
+
+    # Check if it's time for a long break
+    if elapsed_time >= BREAK_INTERVAL:
+        break_maker(LONG_BREAK_DURATION)
+        start_time = time.time()
+        last_break_time = start_time
+
+    # Check if it's time for a short break
+    if time.time() - last_break_time >= INTENSIVE_TASK_DURATION:
+        break_maker(SHORT_BREAK_DURATION)
+        last_break_time = time.time()
+
+    return start_time, last_break_time
+
+
 def objective(trial:optuna.Trial):
+    # Set the start time when the task begins
+    global trial_start_time
+    global last_break_time
+
+    # Check if it's time for a break to avoid overheating
+    trial_start_time, last_break_time = check_and_handle_breaks(trial_start_time, last_break_time)
 
     # set the parameters to be optimised (in this case just the weights for the score function)
     params = {
@@ -169,8 +195,9 @@ def make_study(new_study:bool=True, study_name:str='', starting_date:str=''):
         study_name = STUDY_NAME
 
         full_study_name = study_name + "_" + starting_date
-        print('\n'*2+ '-'*50)
+        print('\n'*2+ '-'*70)
         print('Starting new study: ' + full_study_name)
+        print('-'*70+'\n')
 
         # Create a study object and start optimisation
         study = optuna.create_study(direction='maximize', 
@@ -181,6 +208,13 @@ def make_study(new_study:bool=True, study_name:str='', starting_date:str=''):
     return study, full_study_name
 
 def main(load_study:bool=False, study_name:str='', starting_date:str=''):
+
+    global trial_start_time
+    global last_break_time
+
+    # Set the start time when the task begins
+    trial_start_time = time.time()
+    last_break_time = trial_start_time
 
     new_study = not load_study
 
@@ -219,6 +253,7 @@ if __name__ == '__main__':
     Constants to adjust:
 
     STUDY_NAME is the name of the study that is saved
+    STUDY_VERSION is the starting date of the study, used to load the study
 
     N_TRIALS is the number of trials optuna will run to find the best parameters
 
@@ -232,24 +267,36 @@ if __name__ == '__main__':
 
     
 
-    STUDY_NAME = 'testtsetsetse'
-    STUDY_VERSION = '2023-05-27_14-25-05' #date of start of study
+    STUDY_NAME = 'final_score_function'
+    STUDY_VERSION = '2023-05-27_19-29-50' #date of start of study
 
-    N_TRIALS = 3
-    TRAINING_FRACTION = 0.1
+    N_TRIALS = 300
+    TRAINING_FRACTION = 0.4
     VERBOSE = True
     LOAD_STUDY = True
 
-    path = 'ass2/datasets/feature_engineered_data.csv'
+    # Define the time intervals as constants (in seconds)
+    INTENSIVE_TASK_DURATION = 180  # Duration of the intensive task (3 minutes)
+    SHORT_BREAK_DURATION = 30  # Duration of the short break (30 seconds)
+    LONG_BREAK_DURATION = 900  # Duration of the long break (15 minutes)
+    BREAK_INTERVAL = 3600  # Interval for checking time (60 minutes)
+    # LONG_BREAK_DURATION = 10  # Duration of the long break (10 seconds)
+    # BREAK_INTERVAL = 30  # Interval for checking time (30 seconds)
+
+    start_script = time.time()
+
+    path = 'ass2/datasets/final_set.csv'
     # path = 'ass2/datasets/feature_0.1_sample.csv'
 
     df = df_maker.make_df(df_path='', clean_df_path='', feature_df_path=path)
 
-    #sample df smaller
-    gss = GroupShuffleSplit(test_size=1-TRAINING_FRACTION, n_splits=1, random_state = 7).split(df, groups=df['srch_id'])
+    gss = GroupShuffleSplit(test_size=1-TRAINING_FRACTION, n_splits=1, random_state = None).split(df, groups=df['srch_id'])
     small_set_indx, rest_set = next(gss)
     small_set = df.iloc[small_set_indx]
     df = small_set
+    print(f'\n{TRAINING_FRACTION} is sampled from {len(rest_set) + len(small_set)} rows')
+    print(f'Training set size: {len(small_set)}')
+
 
     #TODO: when score function is static, the target column is added in df and the train test split can be done outside of the objective function
 
